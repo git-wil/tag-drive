@@ -2,6 +2,7 @@
   "dependencies": {
     "@google-cloud/local-auth": "2.1.0",
     "fuse.js": "^7.0.0",
-    "googleapis": "105"
+    "googleapis": "105",
+    "nextui-cli": "^0.2.1"
   }
 }
