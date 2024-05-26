@@ -186,10 +186,10 @@ export type ListOutput = {
 };
 
 export type ListQuery = {
-    corpora: "user" | "domain" | "drive" | "allDrives";
-    driveId: string;
-    includeItemsFromAllDrives: boolean;
-    orderBy:
+    corpora?: "user" | "domain" | "drive" | "allDrives";
+    driveId?: string;
+    includeItemsFromAllDrives?: boolean;
+    orderBy?:
         | "createdTime"
         | "folder"
         | "modifiedByMeTime"
@@ -200,11 +200,11 @@ export type ListQuery = {
         | "sharedWithMeTime"
         | "starred"
         | "viewedByMeTime";
-    pageSize: number;
-    pageToken: string;
-    q: string;
-    spaces: ("drive" | "appDataFolder")[];
-    supportsAllDrives: boolean;
-    includePermissionsForView: string;
-    includeLabels: string;
+    pageSize?: number;
+    pageToken?: string;
+    q?: string;
+    spaces?: ("drive" | "appDataFolder")[];
+    supportsAllDrives?: boolean;
+    includePermissionsForView?: string;
+    includeLabels?: string;
 };
