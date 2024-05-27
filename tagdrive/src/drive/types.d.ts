@@ -1,4 +1,4 @@
-export type File = {
+export type GoogleFile = {
     kind: string;
     driveId: string;
     fileExtension: string;
@@ -178,33 +178,113 @@ export type File = {
     sha256Checksum: string;
 };
 
-export type ListOutput = {
-    nextPageToken: string;
-    kind: string;
-    incompleteSearch: boolean;
-    files: File[];
-};
+export type GoogleDrive = {
+    id: string,
+    name: string,
+    colorRgb: string,
+    kind: string,
+    backgroundImageLink: string,
+    capabilities: {
+      canAddChildren: boolean,
+      canComment: boolean,
+      canCopy: boolean,
+      canDeleteDrive: boolean,
+      canDownload: boolean,
+      canEdit: boolean,
+      canListChildren: boolean,
+      canManageMembers: boolean,
+      canReadRevisions: boolean,
+      canRename: boolean,
+      canRenameDrive: boolean,
+      canChangeDriveBackground: boolean,
+      canShare: boolean,
+      canChangeCopyRequiresWriterPermissionRestriction: boolean,
+      canChangeDomainUsersOnlyRestriction: boolean,
+      canChangeDriveMembersOnlyRestriction: boolean,
+      canChangeSharingFoldersRequiresOrganizerPermissionRestriction: boolean,
+      canResetDriveRestrictions: boolean,
+      canDeleteChildren: boolean,
+      canTrashChildren: boolean
+    },
+    themeId: string,
+    backgroundImageFile: {
+      id: string,
+      xCoordinate: number,
+      yCoordinate: number,
+      width: number
+    },
+    createdTime: string,
+    hidden: boolean,
+    restrictions: {
+      copyRequiresWriterPermission: boolean,
+      domainUsersOnly: boolean,
+      driveMembersOnly: boolean,
+      adminManagedRestrictions: boolean,
+      sharingFoldersRequiresOrganizerPermission: boolean
+    },
+    orgUnitId: string
+  }
 
-export type ListQuery = {
-    corpora?: "user" | "domain" | "drive" | "allDrives";
+export type FileListQuery = {
+    corpora?: user | domain | drive | allDrives;
     driveId?: string;
     includeItemsFromAllDrives?: boolean;
     orderBy?:
-        | "createdTime"
-        | "folder"
-        | "modifiedByMeTime"
-        | "modifiedTime"
-        | "name"
-        | "quotaBytesUsed"
-        | "recency"
-        | "sharedWithMeTime"
-        | "starred"
-        | "viewedByMeTime";
+        | createdTime
+        | folder
+        | modifiedByMeTime
+        | modifiedTime
+        | name
+        | quotaBytesUsed
+        | recency
+        | sharedWithMeTime
+        | starred
+        | viewedByMeTime;
     pageSize?: number;
     pageToken?: string;
     q?: string;
-    spaces?: ("drive" | "appDataFolder")[];
+    spaces?: (drive | appDataFolder)[];
     supportsAllDrives?: boolean;
     includePermissionsForView?: string;
     includeLabels?: string;
+    fields?: string;
 };
+
+export type FileListResponse = {
+    nextPageToken: string;
+    kind: string;
+    incompleteSearch: boolean;
+    files: GoogleFile[];
+};
+
+export type FileCreateQuery = {
+    uploadType?: media | multipart | resumable;
+    ignoreDefaultVisibility?: boolean;
+    keepRevisionForever?: boolean;
+    ocrLanguage?: string;
+    supportsAllDrives?: boolean;
+    useContentAsIndexableText?: boolean;
+    includePermissionsForView?: string;
+    includeLabels?: string;
+}
+
+export type FileCreateResponse = {
+    file:  GoogleFile;
+}
+
+export type FileDeleteQuery = {
+    supportsAllDrives?: boolean;
+}
+
+export type DriveListQuery = {
+    pageSize?: number;
+    pageToken?: string;
+    q?: string;
+    useDomainAdminAccess?: boolean;
+}
+
+export type DriveListResponse = {
+    nextPageToken: string;
+    kind: string;
+    drives: GoogleDrive[];
+}

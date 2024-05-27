@@ -1,4 +1,20 @@
-const { nextui } = require("@nextui-org/react");
+import { nextui } from "@nextui-org/react";
+
+
+export const tag_colors = [
+  "red-800",
+  "pink-800",
+  "purple-800",
+  "indigo-800",
+  "blue-800",
+  "cyan-800",
+  "teal-700",
+  "green-800",
+  "lime-700",
+  "yellow-600",
+  "amber-700",
+  "orange-800",
+]
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -11,6 +27,7 @@ export default {
     extend: {},
   },
   darkMode: "class",
-  plugins: [nextui({ defaultTheme: "dark" })]
+  plugins: [nextui({ defaultTheme: "dark" })],
+  safelist: [...tag_colors.map((color) => `bg-${color}`), ...tag_colors.map((color) => `text-${color}-contrast`)],
 }
 

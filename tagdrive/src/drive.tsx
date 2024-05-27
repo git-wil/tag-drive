@@ -69,7 +69,7 @@ async function onAuth() {
     // Get list of user's drives
     let response;
     try {
-        response = await gapi.client.drive.list({
+        response = await gapi.client.drives.list({
             pageSize: 100,
         });
     } catch (err) {
@@ -82,8 +82,8 @@ async function onAuth() {
         return;
     }
     // Create list of drives
-    let drive_names = response.drives.forEach((drive: any) => drive.name);
-    let drive_ids = response.drives.forEach((drive: any) => drive.id);
+    const drive_names = response.drives.forEach((drive: any) => drive.name);
+    const drive_ids = response.drives.forEach((drive: any) => drive.id);
 }
 
 /**

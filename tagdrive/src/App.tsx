@@ -1,6 +1,4 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
 import "./App.css";
 import {
     Autocomplete,
@@ -12,54 +10,85 @@ import {
     SelectItem,
     Slider,
     Image,
+    Spacer,
 } from "@nextui-org/react";
-import { handleAuthClick, gisLoaded, gapiLoaded } from "./drive";
+import { authorize, getAuth } from "./drive/auth";
+import google_modular from "./drive/google_modular";
+import { GoogleDrive } from "./drive/types";
+import { get_drive_list } from "./drive/google_helpers";
+
+export let setAuthorized: CallableFunction | null = null;
+let pre_authorized = await getAuth() !== null; 
+
+
 
 function App() {
-    var drives = [
-        { name: "C:" },
-        { name: "D:" },
-        { name: "E:" },
-        { name: "F:" },
-    ];
-    gapiLoaded();
-    gisLoaded();
+    const [authorized, local_setAuthorized] = useState(false);
+    setAuthorized = local_setAuthorized;
+    const [drives, setDrives] = useState<GoogleDrive[]>([]);
+
+    if (authorized || pre_authorized) {
+        // TODO: Update drives on page load if pre-authorized
+        // Only run once after authorization
+        setAuthorized(false);
+        pre_authorized = false;
+        get_drive_list().then(async (data) => {
+            const new_drives: GoogleDrive[] = [];
+            for (const drive of data.drives) {
+                new_drives.push(drive);
+            }
+            console.log(new_drives);
+            setDrives(new_drives);
+        }); 
+    }
+    
     return (
-        <>
+        <>  
+            <Spacer y={
+                // TODO: Center the card on the screen dynamically, this is bad
+                `${window.innerHeight/4}px`
+                } />
             <div className="flex align-middle justify-center">
                 <Card
                     isBlurred
                     shadow="sm"
-                    className="border-none bg-background/60 dark:bg-default-100/50 max-w-[1000px] p-5"
+                    className="border-none bg-background/60 dark:bg-default-100/50 max-w-[1000px] w-[500px] p-10"
                 >
                     <CardBody>
-                        <div className="grid grid-cols-6 md:grid-cols-12 gap-6 md:gap-4 items-center justify-center">
-                            <div className="relative col-span-6">
+                        <div className="grid grid-cols-10 md:grid-cols-10 gap-6 md:gap-4 items-center justify-center">
+                            <h1 className="col-span-10 text-5xl font-bold text-center">Tag Operator</h1>
+                            <Spacer y={2} />
+                            <div className="relative col-span-10">
                                 <Button
                                     color="danger"
                                     className="w-full min-h-14 py-2 px-3"
-                                    onClick={handleAuthClick}
+                                    onPress={authorize}
                                 >
-                                    Authenticate...if you dare ;)
+                                    Authenticate
                                 </Button>
                             </div>
-                            <div className="relative col-span-6">
+                            <div className="relative col-span-10">
                                 <Select
+                                    id="drive-select"
+                                    isDisabled={drives.length === 0}
                                     label="Indexed Drive"
                                     placeholder="Select a drive"
-                                    className="form-btn"
+                                    onSelectionChange={(e) => {
+                                        console.log(e);
+                                    }}
+                                    className="form-btn disabled"
                                 >
                                     {drives.map((drive) => (
                                         <SelectItem
-                                            key={drive.name}
-                                            value={drive.name}
+                                            key={drive.id}
+                                            value={drive.id}
                                         >
                                             {drive.name}
                                         </SelectItem>
                                     ))}
                                 </Select>
                             </div>
-                            <div className="relative col-span-6 md:col-span-4">
+                            {/* <div className="relative col-span-6 md:col-span-4">
                                 <Image
                                     alt="Album cover"
                                     className="object-cover"
@@ -155,7 +184,7 @@ function App() {
                                         Shuffle
                                     </Button>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
                     </CardBody>
                 </Card>

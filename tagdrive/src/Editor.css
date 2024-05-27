@@ -8,3 +8,11 @@
 .card {
   padding: 2em;
 }
+
+.container {
+  width: 100%
+}
+
+.tag {
+  mix-blend-mode: "screen"
+}
