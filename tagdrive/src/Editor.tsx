@@ -20,7 +20,24 @@ import { authorize } from "./drive/auth";
 import { FileCard, TagSearchBox } from "./tag/tag";
 import { Tag } from "./tag/types";
 
+// For some reason the file list api needs to run twice to render properly
 let initialized = 2;
+
+
+/*
+TODO:
+- figure out tags lol
+- list files from only specific drive, not just my drive
+- make searching work
+- sidebar (single click)
+    - show thumbnail, full name, tags
+    - add tags
+    - create new tag
+- double click to open file with weblink
+- adaptive rendering of ~30 files at a time as you scroll
+- consider what to show if a file has no tags
+- buttons at top right (create new file? sign out/switch drive?)
+*/
 
 
 
