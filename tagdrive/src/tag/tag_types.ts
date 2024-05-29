@@ -10,6 +10,10 @@ export type Tag = {
     files: FileID[];
 };
 
+export type TagList = {
+    [id: TagID]: Tag;
+};
+
 // export type File = {
 //     id: FileID;
 //     tags: Tag[];

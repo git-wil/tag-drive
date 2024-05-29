@@ -12,10 +12,9 @@ import {
     Image,
     Spacer,
 } from "@nextui-org/react";
-import { authorize, getAuth } from "./drive/auth";
-import google_modular from "./drive/google_modular";
-import { GoogleDrive } from "./drive/types";
-import { get_drive_list } from "./drive/google_helpers";
+import { authorize, getAuth } from "../drive/auth";
+import { GoogleDrive } from "../drive/google_types";
+import { get_drive_list } from "../drive/google_helpers";
 
 export let setAuthorized: CallableFunction | null = null;
 let pre_authorized = await getAuth() !== null; 

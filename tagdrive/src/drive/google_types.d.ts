@@ -1,75 +1,75 @@
 export type GoogleFile = {
     kind: string;
-    driveId: string;
+    driveId: string | undefined; // undefined if in the user's My Drive
     fileExtension: string;
-    copyRequiresWriterPermission: boolean;
-    md5Checksum: string;
-    contentHints: {
+    copyRequiresWriterPermission?: boolean;
+    md5Checksum?: string;
+    contentHints?: {
         indexableText: string;
         thumbnail: {
             image: string;
             mimeType: string;
         };
     };
-    writersCanShare: boolean;
-    viewedByMe: boolean;
+    writersCanShare?: boolean;
+    viewedByMe?: boolean;
     mimeType: string;
-    exportLinks: {
+    exportLinks?: {
         [key: string]: string;
     };
-    parents: [string];
+    parents?: [string];
     thumbnailLink: string;
     iconLink: string;
-    shared: boolean;
-    lastModifyingUser: {
+    shared?: boolean;
+    lastModifyingUser?: {
         object(User);
     };
-    owners: [
+    owners?: [
         {
             object(User);
         }
     ];
-    headRevisionId: string;
-    sharingUser: {
+    headRevisionId?: string;
+    sharingUser?: {
         object(User);
     };
     webViewLink: string;
-    webContentLink: string;
-    size: string;
-    viewersCanCopyContent: boolean;
-    permissions: [
+    webContentLink?: string;
+    size?: string;
+    viewersCanCopyContent?: boolean;
+    permissions?: [
         {
             object(Permission);
         }
     ];
     hasThumbnail: boolean;
-    spaces: [string];
-    folderColorRgb: string;
+    spaces?: [string];
+    folderColorRgb?: string;
     id: string;
     name: string;
-    description: string;
-    starred: boolean;
-    trashed: boolean;
-    explicitlyTrashed: boolean;
-    createdTime: string;
-    modifiedTime: string;
-    modifiedByMeTime: string;
-    viewedByMeTime: string;
-    sharedWithMeTime: string;
-    quotaBytesUsed: string;
-    version: string;
-    originalFilename: string;
-    ownedByMe: boolean;
-    fullFileExtension: string;
-    properties: {
-        [key: string]: string;
+    description?: string;
+    starred?: boolean;
+    trashed?: boolean;
+    explicitlyTrashed?: boolean;
+    createdTime?: string;
+    modifiedTime?: string;
+    modifiedByMeTime?: string;
+    viewedByMeTime?: string;
+    sharedWithMeTime?: string;
+    quotaBytesUsed?: string;
+    version?: string;
+    originalFilename?: string;
+    ownedByMe?: boolean;
+    fullFileExtension?: string;
+    properties?: {
+        [key: string]: unknown;
     };
-    appProperties: {
-        [key: string]: string;
+    appProperties?: {
+        [key: string]: unknown;
     };
-    isAppAuthorized: boolean;
-    teamDriveId: string;
-    capabilities: {
+    isAppAuthorized?: boolean;
+    teamDriveId?: string;
+    capabilities?: {
         canChangeViewersCanCopyContent: boolean;
         canMoveChildrenOutOfDrive: boolean;
         canReadDrive: boolean;
@@ -112,15 +112,15 @@ export type GoogleFile = {
         canModifyOwnerContentRestriction: boolean;
         canRemoveContentRestriction: boolean;
     };
-    hasAugmentedPermissions: boolean;
-    trashingUser: {
+    hasAugmentedPermissions?: boolean;
+    trashingUser?: {
         object(User);
     };
-    thumbnailVersion: string;
-    trashedTime: string;
-    modifiedByMe: boolean;
-    permissionIds: [string];
-    imageMediaMetadata: {
+    thumbnailVersion?: string;
+    trashedTime?: string;
+    modifiedByMe?: boolean;
+    permissionIds?: [string];
+    imageMediaMetadata?: {
         flashUsed: boolean;
         meteringMode: string;
         sensor: string;
@@ -147,44 +147,48 @@ export type GoogleFile = {
         subjectDistance: integer;
         lens: string;
     };
-    videoMediaMetadata: {
+    videoMediaMetadata?: {
         width: integer;
         height: integer;
         durationMillis: string;
     };
-    shortcutDetails: {
+    shortcutDetails?: {
         targetId: string;
         targetMimeType: string;
         targetResourceKey: string;
     };
-    contentRestrictions: [
+    contentRestrictions?: [
         {
             object(ContentRestriction);
         }
     ];
-    resourceKey: string;
-    linkShareMetadata: {
+    resourceKey?: string;
+    linkShareMetadata?: {
         securityUpdateEligible: boolean;
         securityUpdateEnabled: boolean;
     };
-    labelInfo: {
+    labelInfo?: {
         labels: [
             {
                 object(Label);
             }
         ];
     };
-    sha1Checksum: string;
-    sha256Checksum: string;
+    sha1Checksum?: string;
+    sha256Checksum?: string;
 };
+
+export type GoogleFileModifier = {
+    [key in keyof GoogleFile]?: GoogleFile[key];
+}
 
 export type GoogleDrive = {
     id: string,
     name: string,
     colorRgb: string,
-    kind: string,
-    backgroundImageLink: string,
-    capabilities: {
+    kind?: string,
+    backgroundImageLink?: string,
+    capabilities?: {
       canAddChildren: boolean,
       canComment: boolean,
       canCopy: boolean,
@@ -206,24 +210,29 @@ export type GoogleDrive = {
       canDeleteChildren: boolean,
       canTrashChildren: boolean
     },
-    themeId: string,
-    backgroundImageFile: {
+    themeId?: string,
+    backgroundImageFile?: {
       id: string,
       xCoordinate: number,
       yCoordinate: number,
       width: number
     },
-    createdTime: string,
-    hidden: boolean,
-    restrictions: {
+    createdTime?: string,
+    hidden?: boolean,
+    restrictions?: {
       copyRequiresWriterPermission: boolean,
       domainUsersOnly: boolean,
       driveMembersOnly: boolean,
       adminManagedRestrictions: boolean,
       sharingFoldersRequiresOrganizerPermission: boolean
     },
-    orgUnitId: string
+    orgUnitId?: string
   }
+
+  export type FileGetQuery = {
+    supportsAllDrives?: boolean;
+    alt?: "" | "media" | "proto" | "json";
+};
 
 export type FileListQuery = {
     corpora?: user | domain | drive | allDrives;
@@ -257,6 +266,17 @@ export type FileListResponse = {
     files: GoogleFile[];
 };
 
+export type FileUpdateQuery = {
+    uploadType?: media | multipart | resumable;
+    ignoreDefaultVisibility?: boolean;
+    keepRevisionForever?: boolean;
+    ocrLanguage?: string;
+    supportsAllDrives?: boolean;
+    useContentAsIndexableText?: boolean;
+    includePermissionsForView?: string;
+    includeLabels?: string;
+}
+
 export type FileCreateQuery = {
     uploadType?: media | multipart | resumable;
     ignoreDefaultVisibility?: boolean;
@@ -268,8 +288,18 @@ export type FileCreateQuery = {
     includeLabels?: string;
 }
 
-export type FileCreateResponse = {
-    file:  GoogleFile;
+export type FileGenerateIdQuery = {
+    count: number;
+    space: "drive" | "appDataFolder";
+    type: "files" | "shortcuts";
+}
+
+export type FileGenerateIdResponse = {
+    "ids": [
+        string
+    ],
+    "space": string,
+    "kind": "drive#generatedIds",
 }
 
 export type FileDeleteQuery = {

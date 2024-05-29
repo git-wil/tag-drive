@@ -1,0 +1,23 @@
+{
+    "TagFile0": {
+        "color": "red-800",
+        "name": "TagFile0",
+        "aliases": [],
+        "children": [],
+        "files": ["File0"]
+    },
+    "TagFile1":{
+        "color": "purple-800",
+        "name": "TagFile1",
+        "aliases": [],
+        "children": [],
+        "files": []
+    },
+    "TagFile2":{
+        "color": "teal-700",
+        "name": "TagFile2",
+        "aliases": [],
+        "children": [],
+        "files": ["File0"]
+    }
+}

@@ -1,4 +1,4 @@
-import { FileCreateQuery, FileDeleteQuery, FileListResponse, FileListQuery, DriveListQuery, FileCreateResponse, DriveListResponse } from "./types";
+import { FileUpdateQuery, FileDeleteQuery, FileListResponse, FileListQuery, DriveListQuery, DriveListResponse, FileGenerateIdQuery, FileGenerateIdResponse, GoogleFile, FileCreateQuery, GoogleFileModifier, FileGetQuery as FileGetMetaDataQuery } from "./google_types";
 import { getAuth } from "./auth";
 
 function create_query_string(params: {[name: string]: unknown}): string {
@@ -6,43 +6,131 @@ function create_query_string(params: {[name: string]: unknown}): string {
 }
 
 class files_class {
-    static #endpoint = "https://www.googleapis.com/drive/v3/files";
-    static #url = new URL(files_class.#endpoint);
+    static #base_url = "https://www.googleapis.com/drive/v3/files";
+    static #upload_url = "https://www.googleapis.com/upload/drive/v3/files";
 
     static async list(params: FileListQuery): Promise<FileListResponse> {
-        params["fields"] = "files(kind, id, name, mimeType, webViewLink, hasThumbnail, thumbnailLink)";
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
         // Using this method https://stackoverflow.com/questions/68655145/create-folders-in-a-shared-drive-google-drive-api-with-javascript
-        const response = await fetch(files_class.#url.toString() + create_query_string(params), {
+        const response = await fetch(files_class.#base_url + create_query_string(params), {
             method: "GET",
             headers,
         });
         return await response.json();
     }
 
-    static async create(file: File, params: FileCreateQuery): Promise<FileCreateResponse> {
-        // Create a new file specified by the file input, while including query parameters
+    static async get_metadata(file_id: string, params: FileGetMetaDataQuery): Promise<GoogleFile> {
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
-        headers.append("Content-Type", "application/json");
-        // Include both the file and the parameters in the body of the request as the Google Drive API requires
-        const response = await fetch(files_class.#url.toString() + create_query_string(params), {
-            method: "POST",
-            body: JSON.stringify(file),
+        const response = await fetch(files_class.#base_url + `/${file_id}` + create_query_string(params), {
+            method: "GET",
             headers,
         });
         return await response.json();
-
     }
 
-    static async delete(fileId: string, params: FileDeleteQuery) {
+    static async get_data(file_id: string, params: FileGetMetaDataQuery): Promise<unknown> {
+        params["alt"] = "media";
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
-        await fetch(files_class.#url.toString() + "/" + fileId + create_query_string(params), {
+        const response = await fetch(files_class.#base_url + `/${file_id}` + create_query_string(params), {
+            method: "GET",
+            headers,
+        });
+        return await response;
+    }
+
+    static async export(file_id: string, mimeType: string): Promise<string> {
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        const response = await fetch(files_class.#base_url + `/${file_id}/export` + create_query_string({ mimeType }), {
+            method: "GET",
+            headers,
+        });
+        return await response.text();
+    }
+
+    static async generateIds(params: FileGenerateIdQuery): Promise<FileGenerateIdResponse> {
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        // Using this method https://stackoverflow.com/questions/68655145/create-folders-in-a-shared-drive-google-drive-api-with-javascript
+        const response = await fetch(files_class.#base_url + "/generateIds" + create_query_string(params), {
+            method: "GET",
+            headers,
+        });
+        return await response.json();
+    }
+
+    static async update(file_id: string, file_content: string, file_metadata: GoogleFileModifier, params: FileUpdateQuery): Promise<GoogleFile> {
+        console.log("Updating file", file_metadata, file_content)
+        const blob_file = new Blob([file_content ? file_content : ""], {type: file_metadata.mimeType || "text/plain"});
+
+        params["uploadType"] = "multipart";
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(file_metadata)], { type: 'application/json' }));
+        form.append('file', blob_file);
+
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        headers.append('Content-Type', 'application/json')
+        headers.append('X-Upload-Content-Length', blob_file.size.toString());
+        headers.append('X-Upload-Content-Type', file_metadata.mimeType || "text/plain");
+        // Using this method https://stackoverflow.com/questions/68655145/create-folders-in-a-shared-drive-google-drive-api-with-javascript
+        const response = await fetch(files_class.#upload_url + `/${file_id}` + create_query_string(params), {
+            method: "PATCH",
+            headers,
+            body: form,
+        });
+        /// console.log("Update Response json", await response.json())
+        return await response.json();
+    }
+
+    static async update_metadata(file_id: string, file_metadata: GoogleFileModifier, params: FileUpdateQuery): Promise<GoogleFile> {
+
+        // params["uploadType"] = "multipart";
+        // const form = new FormData();
+        // form.append('metadata', new Blob([JSON.stringify(file_metadata)], { type: 'application/json' }));
+
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        // Using this method https://stackoverflow.com/questions/68655145/create-folders-in-a-shared-drive-google-drive-api-with-javascript
+        const response = await fetch(files_class.#base_url + `/${file_id}` + create_query_string(params), {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify(file_metadata),
+        });
+        return await response.json();
+    }
+
+    static async create(file_content: string, file_metadata: GoogleFileModifier, params: FileCreateQuery): Promise<GoogleFile> {
+        console.log("Creating file", file_metadata, file_content)
+        const blob_file = new Blob([file_content ? file_content : ""], {type: file_metadata.mimeType || "text/plain"});
+
+        params["uploadType"] = "multipart";
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(file_metadata)], { type: 'application/json' }));
+        form.append('file', blob_file);
+
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        // Using this method https://stackoverflow.com/questions/68655145/create-folders-in-a-shared-drive-google-drive-api-with-javascript
+        const response = await fetch(files_class.#upload_url + create_query_string(params), {
+            method: "POST",
+            headers,
+            body: form,
+        });
+        return await response.json();
+    }
+
+    static async delete(file_id: string, params: FileDeleteQuery) {
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        await fetch(files_class.#base_url + "/" + file_id + create_query_string(params), {
             method: "DELETE",
             headers,
         });
+        // return status?
     }
 }
 
@@ -53,7 +141,7 @@ class drives_class {
     static async list(params: DriveListQuery): Promise<DriveListResponse> {
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
-        const response = await fetch(drives_class.#url.toString() + create_query_string(params), {
+        const response = await fetch(drives_class.#url + create_query_string(params), {
             method: "GET",
             headers,
         });

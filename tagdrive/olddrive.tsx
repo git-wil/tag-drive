@@ -5,9 +5,7 @@ import { useState } from "react";
 /* exported handleSignoutClick */
 
 // TODO(developer): Set to client ID and API key from the Developer Console
-const CLIENT_ID =
-    "553078280794-72e6toh33u9fgbcnmrp2kfllruqc6iv6.apps.googleusercontent.com";
-const API_KEY = "AIzaSyBmziun6RzUgkAVu9WIrVx-6oZVrgCXJfo";
+
 
 // Discovery doc URL for APIs used by the quickstart
 const DISCOVERY_DOC =

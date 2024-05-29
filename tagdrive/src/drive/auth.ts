@@ -1,5 +1,5 @@
 import { CLIENT_ID, CLIENT_SECRET } from "./credentials";
-import { setAuthorized } from "../App";
+import { setAuthorized } from "../app/App";
 
 const SCOPE = "https://www.googleapis.com/auth/drive";
 export const REDIRECT_URI = "http://localhost:3000";

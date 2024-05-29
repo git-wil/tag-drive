@@ -1,61 +1,26 @@
-import "../Editor.css";
+import "../editor/Editor.css";
 import {
-    Autocomplete,
-    AutocompleteItem,
-    Button,
+    // Autocomplete,
+    // AutocompleteItem,
+    // Button,
     Card,
     Image,
     Input,
-    Listbox,
-    ListboxItem,
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-    Selection,
+    // Listbox,
+    // ListboxItem,
+    // Popover,
+    // PopoverContent,
+    // PopoverTrigger,
+    // Selection,
     Skeleton,
     Spacer,
 } from "@nextui-org/react";
+import { GoogleFile } from "../drive/google_types.js";
+import { TagID } from "./tag_types.js";
+import { getTagByID } from "./tags_slice.js";
+import { useAppSelector } from "../store/hooks.js";
 
-import { useState } from "react";
-import { GoogleFile } from "../drive/types";
-import { Tag, TagID } from "./types";
-import { tag_colors } from "../../tailwind.config.js";
-
-
-const allowed_colors = tag_colors;
-
-
-const temp_tags: {[id: TagID]: Tag} = {
-    "0": {
-        color: "amber-700",
-        name: "Tag0",
-        aliases: [],
-        children: [],
-        files: ["File0"]
-    },
-    "1":{
-        color: "lime-700",
-        name: "Second Tag",
-        aliases: [],
-        children: [],
-        files: ["File0"]
-    },
-    "2":{
-        color: "blue-800",
-        name: "Tag2123123",
-        aliases: [],
-        children: [],
-        files: ["File0"]
-    }
-}
-
-function getTags() {
-    return temp_tags;
-}
-
-function getTag(tag_id: TagID) {
-    return temp_tags[tag_id];
-}
+export const TAG_FILE_NAME = "TagOperatorOfficialTagList.json";
 
 
 export function TagSearchBox() {
@@ -77,23 +42,24 @@ export function TagSearchBox() {
 
 }
 
-function TagElement(props: {tag: Tag}) {
-    const tag = props.tag;
+function TagElement(props: {tag_id: TagID}) {
+    const tag_id = props.tag_id;
+    const tag = useAppSelector((state) => getTagByID(state, tag_id));
     return (
-        <div className={`h-[30px] w-fit p-2 bg-${tag.color} rounded-md tag`}>
+        <div className={`h-[30px] w-fit p-2 px-3 bg-${tag.color} rounded-full tag`}>
             <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
         </div>
     );
 }
 
-function TagCard(props: {tags: Tag[]}) {
-    const tags = props.tags;
+function TagCard(props: {tag_ids: TagID[]}) {
+    const tag_ids = props.tag_ids;
     return (
         <Card
             className="flex-row flex-wrap overflow-auto border-none bg-zinc-700 h-[90px] rounded-md p-2 gap-2">
             {
-                tags.map((tag) => (
-                    <TagElement tag={tag}/>
+                tag_ids.map((tag_id) => (
+                    <TagElement tag_id={tag_id}/>
                 ))
             }
         </Card>
@@ -104,8 +70,9 @@ export function FileCard(props: {file: GoogleFile | null}) {
     const file = props.file;
     const file_name = file?.name;
     const file_type = file?.mimeType;
-    const thumbnail_link = file?.thumbnailLink;
-    const file_tags = Math.random() > 0.5 ? ["0", "1"] : ["1", "2"];
+    // const thumbnail_link = file?.thumbnailLink
+    const thumbnail_link = file?.iconLink;
+    const file_tag_ids = Math.random() > 0.5 ? ["0", "1"] : ["1", "2"];
     return (
         <Card
             isBlurred={false}
@@ -128,7 +95,7 @@ export function FileCard(props: {file: GoogleFile | null}) {
                         <Image
                             alt={file_name}
                             src={thumbnail_link}
-                            loading="lazy"
+                            loading="eager"
                             disableSkeleton
                             className="rounded-t-md object-cover h-[200px] w-full"
                         />
@@ -145,7 +112,7 @@ export function FileCard(props: {file: GoogleFile | null}) {
                     isLoaded={file !== null}
                     className="rounded-lg"
                 >   
-                    <TagCard tags={file_tags.map((tag_id) => getTag(tag_id))}/>
+                    <TagCard tag_ids={file_tag_ids}/>
                 </Skeleton>
             </div>
         </Card>
