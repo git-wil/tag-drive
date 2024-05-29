@@ -1,6 +1,6 @@
 import google_modular from "./google_modular";
 import { DriveListResponse, FileListResponse, GoogleFileModifier, GoogleFile } from "./google_types";
-import { Tag, TagList } from "../tag/tag_types";
+import { TagList } from "../tag/tag_types";
 import { TAG_FILE_NAME } from "../tag/tag_display";
 
 const ALLOWED_MIME_TYPES = [
@@ -37,18 +37,15 @@ export async function get_drive_list(): Promise<DriveListResponse> {
 }
 
 export async function get_file_list(drive_id: string): Promise<FileListResponse> {
-    let corpora = "user";
-    if (drive_id != "") {
-        corpora = "drive";
-    }
     return google_modular.files.list({
-        corpora: corpora,
+        corpora: drive_id == "" ? "user" : "drive",
         driveId: drive_id,
         pageSize: 30, // Update to use pagination later
-        q: "trashed=false and " + ALLOWED_MIME_TYPES_STRING,
+        q: `trashed=false and name!='${TAG_FILE_NAME}' and ${ALLOWED_MIME_TYPES_STRING}`,
         fields: "files(id, name, mimeType, webViewLink, hasThumbnail, thumbnailLink, iconLink, driveId)",
         supportsAllDrives: true,
-        orderBy: "recency", // TODO: decide if we want to sort by recency or name
+        includeItemsFromAllDrives: drive_id != "",
+        orderBy: "recency desc", // TODO: decide if we want to sort by recency or name
     })
 }
 
@@ -100,6 +97,7 @@ export async function get_tag_file_metadata(drive_id: string) {
         q: `name='${TAG_FILE_NAME}' and trashed=false and mimeType='application/vnd.google-apps.document'`,
         fields: "files(*)", //"files(id, name, mimeType)",
         supportsAllDrives: true,
+        includeItemsFromAllDrives: drive_id != "",
     }
 
     const result = await google_modular.files.list(params);
@@ -161,20 +159,15 @@ export async function save_tag_file(tags: TagList, tag_file_metadata: GoogleFile
 }
 
 
-export async function delete_old_tag_files(drive_id: string) {
-    console.log("Deleting old tag files");
-    let corpora = "user";
-    if (drive_id != "") {
-        console.log("Drive ID: " + drive_id);
-        corpora = "drive";
-    }
+export async function delete_tag_files_in_drive(drive_id: string) {
     const result = await google_modular.files.list({
-        corpora: corpora,
+        corpora: drive_id == "" ? "user" : "drive",
         driveId: drive_id,
         pageSize: 10,
         q: `name='${TAG_FILE_NAME}' and trashed=false`,
         fields: "files(*)",//"files(id, name, mimeType)",
         supportsAllDrives: true,
+        includeItemsFromAllDrives: drive_id != "",
     });
     console.log("Deleting Results", await result);
     for (const file of await result.files) {

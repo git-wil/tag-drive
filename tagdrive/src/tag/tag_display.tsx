@@ -50,7 +50,6 @@ function TagElement(props: {tag_id: TagID}) {
     if (!files_loaded) {
         return <div></div>;
     }
-    console.log("Reading tag by name", tag)
     return (
         <div className={`h-[30px] w-fit p-2 px-3 bg-${tag.color} rounded-full tag`}>
             <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
@@ -65,7 +64,7 @@ function TagCard(props: {tag_ids: TagID[]}) {
             className="flex-row flex-wrap overflow-auto border-none bg-zinc-700 h-[90px] rounded-md p-2 gap-2">
             {
                 tag_ids.map((tag_id) => (
-                    <TagElement tag_id={tag_id}/>
+                    <TagElement tag_id={tag_id} key={tag_id}/>
                 ))
             }
         </Card>

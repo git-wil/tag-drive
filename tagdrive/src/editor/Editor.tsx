@@ -15,7 +15,7 @@ import {
 } from "@nextui-org/react";
 import google_modular from "../drive/google_modular";
 import { GoogleFile } from "../drive/google_types";
-import { delete_old_tag_files, get_drive_list, get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
+import { delete_tag_files_in_drive, get_drive_list, get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
 import { authorize } from "../drive/auth";
 import { FileCard, TagSearchBox } from "../tag/tag_display";
 import { Tag } from "../tag/tag_types";
@@ -26,21 +26,23 @@ import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { getFiles, getFilesLoaded, setFiles, setFilesLoaded } from "../drive/files_slice";
 import { getTagFileID, getTagFileMetadata, getTags, setTagFileID, setTagFileMetaData, setTags } from "../tag/tags_slice";
 
+
 let initialized = false;
 
 const drive_id = "";
 
 
+
 /*
 TODO Editor:
-- figure out tags lol
-    - i guess just modify tag file as a google doc
-- list files from only specific drive, not just my drive
-- make searching work
+- figure out tags lol ✔
+    - i guess just modify tag file as a google doc ✔
+- list files from only specific drive, not just my drive ✔
 - sidebar (single click)
     - show thumbnail, full name, tags
     - add tags
     - create new tag
+- make searching work
 - double click to open file with weblink
 - adaptive rendering of ~30 files at a time as you scroll
 - consider what to show if a file has no tags
@@ -53,12 +55,12 @@ function Editor() {
     const selectedFile = null;
     const dispatch = useAppDispatch()
     const files = useAppSelector(getFiles)
-    const tags = useAppSelector(getTags)
-    const tag_file_id = useAppSelector(getTagFileID)
-    const tag_file_metadata = useAppSelector(getTagFileMetadata)
+    // const tags = useAppSelector(getTags)
+    // const tag_file_id = useAppSelector(getTagFileID)
+    // const tag_file_metadata = useAppSelector(getTagFileMetadata)
 
     if (!initialized) {
-        // Replace with real drive_id
+        // Load tags and files
         get_tag_file_metadata(drive_id).then((metadata) => {
             console.log("Got metadata", metadata)
             dispatch(setTagFileMetaData(metadata));
@@ -85,82 +87,54 @@ function Editor() {
                     className="border-none bg-background/60 dark:bg-default-100/50"
                 >
                     <CardBody>
-                        <div className="grid grid-cols-8 gap-2 items-center justify-center">
-                            <div className="col-span-6">
+                        <div className="grid grid-cols-12 gap-2 items-center justify-center">
+                            <div 
+                              id="search-bar"
+                              className="col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10">
                                 <TagSearchBox/>
                                 {/* <TagSearchBox
                                     selectedKeys={selectedTags} 
                                     setSelectedKeys={setSelectedTags}
                                     tags={tags}/> */}
                             </div>
-                            <div className="col-span-1 h-full">
+                            <div 
+                              id="button-bar"
+                              className="grid grid-cols-2 gap-2 h-full col-span-6 md:col-span-4 lg:col-span-3 xl:col-span-2">
+                                <div className="col-span-1 h-full">
+
                                 <Button
-                                className="w-full h-full"
-                                onClick={async () => {
-                                    console.log("Filler Button Clicked");
-                                }}
-                                >Filler Button</Button>
+                                    className="w-full h-full"
+                                    onClick={async () => {
+                                        console.log("Filler Button Clicked");
+                                    }}
+                                    >Filler Button</Button>
+                                </div>
+                                <div className="col-span-1 h-full">
+                                    <Button
+                                    className="w-full h-full"
+                                    onClick={async () => {
+                                        console.log("Filler Button 2 Clicked");
+                                    }}
+                                    >Filler Button 2</Button>
+                                </div>
                             </div>
-                            <div className="col-span-1 h-full">
-                                <Button
-                                className="w-full h-full"
-                                onClick={async () => {
-                                    console.log("Filler Button 2 Clicked");
-                                }}
-                                >Filler Button 2</Button>
-                            </div>
-                            <Card className="overflow-auto col-span-6 border-none bg-background/60 dark:bg-default-100/50 h-[780px] rounded-3xl">
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 items-center justify-center p-2">
+                            <Card
+                              id= "file-list"
+                              className="overflow-auto col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10 border-none bg-background/60 dark:bg-default-100/50 h-[780px] rounded-3xl">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-2 items-center justify-center p-2">
                                     {
-                                        files.map((item) => {
+                                        files.map((item, index) => {
                                             return (
-                                                <FileCard file={item}/>
+                                                <FileCard file={item} key={index}/>
                                             );
                                         })
                                     }
                                 </div>
                             </Card>
-                            <Card className="col-span-2 space-y-5 p-4 h-full" radius="lg">
-                                <div className="w-full lg:h-[200px] md:h-[150px] sm:h-[100px] rounded-lg bg-default-300"></div>
-                                <Button
-                                    className="w-full"
-                                    onClick={async () => {
-                                        console.log("Get Tag File Metadata Clicked");
-                                        const tag_file = await get_tag_file_metadata(drive_id);
-                                        dispatch(setTagFileID(await tag_file.id));
-                                        dispatch(setTagFileMetaData(await tag_file));
-                                        console.log(await tag_file);
-                                    }}
-                                    >Get Tag File Metadata</Button>
-                                <Button
-                                    className="w-full"
-                                    onClick={async () => {
-                                        console.log("Get Tag File Data Clicked");
-                                        console.log("Tags", tags);
-                                        const tag_file_data = await get_tag_file_data(tag_file_metadata);
-                                        console.log(await tag_file_data);
-                                    }}
-                                    >Get Tag File Data</Button>
-                                <Button
-                                    className="w-full"
-                                    onClick={async () => {
-                                        console.log("Save Tag File Clicked");
-                                        console.log("Tags", tags);
-                                        await save_tag_file(tags, tag_file_metadata, drive_id);
-                                        const new_tag_file = await get_tag_file_metadata(drive_id);
-                                        dispatch(setTagFileMetaData(await new_tag_file));
-                                        console.log("New tag file", await new_tag_file);
-                                    }}
-                                    >Save Tag File</Button>
-                                <Button
-                                    className="w-full"
-                                    onClick={async () => {
-                                        console.log("Delete Tag File Clicked");
-                                        await delete_old_tag_files(drive_id);
-                                        console.log("Deleted")
-                                    }}
-                                    >Delete Tag File</Button>
-
+                            <Card
+                              id="sidebar"
+                              className="col-span-6 md:col-span-4 lg:col-span-3 xl:col-span-2 space-y-5 p-4 h-full" radius="lg">
+                                <div className="w-full h-[200px] lg:h-[200px] md:h-[200px] sm:h-[200px] rounded-lg bg-default-300"></div>
                                 {selectedFile !== null
                                     ? <div className="w-full lg:h-350 md:h-200 sm:h-50 rounded-lg bg-default-300"></div>
                                     : null}

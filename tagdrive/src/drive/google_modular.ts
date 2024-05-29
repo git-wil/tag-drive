@@ -1,6 +1,7 @@
 import { FileUpdateQuery, FileDeleteQuery, FileListResponse, FileListQuery, DriveListQuery, DriveListResponse, FileGenerateIdQuery, FileGenerateIdResponse, GoogleFile, FileCreateQuery, GoogleFileModifier, FileGetQuery as FileGetMetaDataQuery } from "./google_types";
 import { getAuth } from "./auth";
 
+
 function create_query_string(params: {[name: string]: unknown}): string {
     return "?" + Object.entries(params).map(([key, value]) => `${key}=${value}`).join("&");
 }
