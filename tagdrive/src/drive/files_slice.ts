@@ -7,7 +7,8 @@ const initial_files: GoogleFile[] = Array(30).fill(null as GoogleFile | null)
 export const filesSlice = createSlice({
   name: 'files',
   initialState: {
-    files: initial_files
+    files: initial_files,
+    files_loaded: false
   },
   reducers: {
     setFiles: (state, action) => {
@@ -17,11 +18,15 @@ export const filesSlice = createSlice({
       // immutable state based off those changes
       state.files = action.payload;
     },
-  },
+    setFilesLoaded: (state, action) => {
+      state.files_loaded = action.payload;
+    },
+  }
 })
 
-export const { setFiles } = filesSlice.actions
+export const { setFiles, setFilesLoaded } = filesSlice.actions
 export const getFiles = (state: RootState) => state.files.files
+export const getFilesLoaded = (state: RootState) => state.files.files_loaded
 
 
 export default filesSlice.reducer

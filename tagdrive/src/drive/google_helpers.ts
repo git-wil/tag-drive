@@ -53,20 +53,42 @@ export async function get_file_list(drive_id: string): Promise<FileListResponse>
 }
 
 async function create_tag_file(drive_id: string): Promise<string> {
-    const fileData = "";
+    console.log("Creating tag file");
+    const fileData = JSON.stringify({
+        "TagFile0": {
+            "color": "red-800",
+            "name": "TagFile0",
+            "aliases": [],
+            "children": [],
+            "files": ["File0"]
+        },
+        "TagFile1":{
+            "color": "purple-800",
+            "name": "TagFile1",
+            "aliases": [],
+            "children": [],
+            "files": []
+        },
+        "TagFile2":{
+            "color": "teal-700",
+            "name": "TagFile2",
+            "aliases": [],
+            "children": [],
+            "files": ["File0"]
+        }
+    });
     const fileMetadata: GoogleFileModifier = {
         name: TAG_FILE_NAME,
         parents: [drive_id || "root"],
-        mimeType: 'application/tag-operator-tag-list',
+        mimeType: 'application/vnd.google-apps.document',
         appProperties: {
             "tag-operator-version": "1.0.0",
-            "tags": JSON.stringify({}),
         },
     };
     const result = await google_modular.files.create(fileData, fileMetadata, {
         supportsAllDrives: true,
     });
-    console.log(await result);
+    console.log("Created new tag file", await result);
     return await result.id;
 }
 
@@ -75,7 +97,7 @@ export async function get_tag_file_metadata(drive_id: string) {
         corpora: drive_id == "" ? "user" : "drive",
         driveId: drive_id,
         pageSize: 1,
-        q: `name='${TAG_FILE_NAME}' and trashed=false and mimeType='application/tag-operator-tag-list'`,
+        q: `name='${TAG_FILE_NAME}' and trashed=false and mimeType='application/vnd.google-apps.document'`,
         fields: "files(*)", //"files(id, name, mimeType)",
         supportsAllDrives: true,
     }
@@ -97,7 +119,14 @@ export async function get_tag_file_metadata(drive_id: string) {
 }
 
 export async function get_tag_file_data(tag_file_metadata: GoogleFile) {
-    return tag_file_metadata.appProperties?.tags;
+    const file_data = await google_modular.files.export(tag_file_metadata.id, "text/plain");
+    console.log(await file_data);
+    if (!(await file_data)) {
+        console.log("No file data")
+        return {};
+    }
+    console.log("tags file data: |" + await file_data + "|")
+    return JSON.parse(await file_data);
 }
 
 // export async function get_tag_file_data(drive_id: string) {
@@ -114,17 +143,15 @@ export async function get_tag_file_data(tag_file_metadata: GoogleFile) {
 //     return file_data;
 // }
 
-export async function save_tag_file(tags: TagList, tag_file_id: string, tag_file_metadata: GoogleFile, drive_id: string): Promise<GoogleFile> {
+export async function save_tag_file(tags: TagList, tag_file_metadata: GoogleFile, drive_id: string): Promise<GoogleFile> {
     // Check if the tag file exists
-    if (tag_file_id == "") {
-        tag_file_id = await create_tag_file(drive_id);
+    if (!tag_file_metadata) {
+        tag_file_metadata = await get_tag_file_metadata(drive_id);
     }
-    const result = await google_modular.files.update_metadata(tag_file_id, {
-        mimeType: tag_file_metadata.mimeType,   
+
+    const result = await google_modular.files.update(tag_file_metadata.id, JSON.stringify(tags), {
+        mimeType: tag_file_metadata.mimeType,
         name: tag_file_metadata.name,
-        appProperties: {
-            "tags": JSON.stringify(tags),
-        },
     }, {
         supportsAllDrives: true,
     });

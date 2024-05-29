@@ -64,7 +64,8 @@ class files_class {
 
     static async update(file_id: string, file_content: string, file_metadata: GoogleFileModifier, params: FileUpdateQuery): Promise<GoogleFile> {
         console.log("Updating file", file_metadata, file_content)
-        const blob_file = new Blob([file_content ? file_content : ""], {type: file_metadata.mimeType || "text/plain"});
+        // const blob_file = new Blob([file_content ? file_content : ""], {type: file_metadata.mimeType || "text/plain"});
+        const blob_file = new Blob([file_content ? file_content : ""], {type: "text/plain"});
 
         params["uploadType"] = "multipart";
         const form = new FormData();
@@ -73,9 +74,8 @@ class files_class {
 
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
-        headers.append('Content-Type', 'application/json')
-        headers.append('X-Upload-Content-Length', blob_file.size.toString());
-        headers.append('X-Upload-Content-Type', file_metadata.mimeType || "text/plain");
+        // headers.append('X-Upload-Content-Length', blob_file.size.toString());
+        // headers.append('X-Upload-Content-Type', file_metadata.mimeType || "text/plain");
         // Using this method https://stackoverflow.com/questions/68655145/create-folders-in-a-shared-drive-google-drive-api-with-javascript
         const response = await fetch(files_class.#upload_url + `/${file_id}` + create_query_string(params), {
             method: "PATCH",
@@ -105,7 +105,8 @@ class files_class {
 
     static async create(file_content: string, file_metadata: GoogleFileModifier, params: FileCreateQuery): Promise<GoogleFile> {
         console.log("Creating file", file_metadata, file_content)
-        const blob_file = new Blob([file_content ? file_content : ""], {type: file_metadata.mimeType || "text/plain"});
+        // const blob_file = new Blob([file_content ? file_content : ""], {type: file_metadata.mimeType || "text/plain"});
+        const blob_file = new Blob([file_content ? file_content : ""], {type: "text/plain"});
 
         params["uploadType"] = "multipart";
         const form = new FormData();

@@ -8,35 +8,10 @@ import { GoogleFile } from '../drive/google_types.js';
 const allowed_colors = tag_colors;
 
 
-const temp_tags: TagList = {
-    "0": {
-        color: "amber-700",
-        name: "Tag0",
-        aliases: [],
-        children: [],
-        files: ["File0"]
-    },
-    "1":{
-        color: "lime-700",
-        name: "Second Tag",
-        aliases: [],
-        children: [],
-        files: ["File0"]
-    },
-    "2":{
-        color: "blue-800",
-        name: "Tag2123123",
-        aliases: [],
-        children: [],
-        files: ["File0"]
-    }
-}
-
-
 export const tagsSlice = createSlice({
   name: 'tags',
   initialState: {
-    tags: temp_tags as TagList,
+    tags: {} as TagList,
     tag_file_id: "",
     tag_file_metadata: {} as GoogleFile
   },

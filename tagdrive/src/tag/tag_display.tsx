@@ -19,6 +19,7 @@ import { GoogleFile } from "../drive/google_types.js";
 import { TagID } from "./tag_types.js";
 import { getTagByID } from "./tags_slice.js";
 import { useAppSelector } from "../store/hooks.js";
+import { getFilesLoaded } from "../drive/files_slice.js";
 
 export const TAG_FILE_NAME = "TagOperatorOfficialTagList.json";
 
@@ -45,6 +46,11 @@ export function TagSearchBox() {
 function TagElement(props: {tag_id: TagID}) {
     const tag_id = props.tag_id;
     const tag = useAppSelector((state) => getTagByID(state, tag_id));
+    const files_loaded = useAppSelector(getFilesLoaded);
+    if (!files_loaded) {
+        return <div></div>;
+    }
+    console.log("Reading tag by name", tag)
     return (
         <div className={`h-[30px] w-fit p-2 px-3 bg-${tag.color} rounded-full tag`}>
             <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
@@ -70,52 +76,54 @@ export function FileCard(props: {file: GoogleFile | null}) {
     const file = props.file;
     const file_name = file?.name;
     const file_type = file?.mimeType;
+    // TODO: use thumbnailLink instead of iconLink, google drive just
+    // hates me sometimes and doesn't want to display thumbnails
     // const thumbnail_link = file?.thumbnailLink
     const thumbnail_link = file?.iconLink;
-    const file_tag_ids = Math.random() > 0.5 ? ["0", "1"] : ["1", "2"];
+    const file_tag_ids = Math.random() > 0.5 ? ["TagFile0", "TagFile1"] : ["TagFile1", "TagFile2"];
     return (
-        <Card
-            isBlurred={false}
-            isPressable
-            isHoverable
-            disableRipple
-            onClick={()=>{console.log("Clicked")}}
-            onDoubleClick={(e)=>{
-                e.preventDefault();
-                e.stopPropagation();
-                console.log("Double Clicked");
-            }}
-            className="border-none bg-zinc-900 rounded-2xl ">
-            <div className="w-full h-full items-center justify-center p-2">
-                <Skeleton
-                    isLoaded={file !== null}
-                    className="rounded-t-lg"
-                >
-                    <div className="overflow-hidden w-full h-[200px] place-content-center bg-zinc-700 rounded-t-md">
-                        <Image
-                            alt={file_name}
-                            src={thumbnail_link}
-                            loading="eager"
-                            disableSkeleton
-                            className="rounded-t-md object-cover h-[200px] w-full"
-                        />
-                    </div>
-                </Skeleton>
-                <Skeleton
-                    isLoaded={file !== null}
-                    className="rounded-b-lg"
-                >
-                    <h3 className="truncate w-full h-[30px] bg-zinc-700 rounded-b-md py-1 px-3 font-medium">{file_name}</h3>
-                </Skeleton>
-                <Spacer y={3}/>
-                <Skeleton
-                    isLoaded={file !== null}
-                    className="rounded-lg"
-                >   
-                    <TagCard tag_ids={file_tag_ids}/>
-                </Skeleton>
-            </div>
-        </Card>
+            <Card
+                isBlurred={false}
+                isPressable
+                isHoverable
+                disableRipple
+                onClick={()=>{console.log("Clicked")}}
+                onDoubleClick={(e)=>{
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Double Clicked");
+                }}
+                className="border-none bg-zinc-900 rounded-2xl ">
+                <div className="w-full h-full items-center justify-center p-2">
+                    <Skeleton
+                        isLoaded={file !== null}
+                        className="rounded-t-lg"
+                    >
+                        <div className="overflow-hidden w-full h-[200px] place-content-center bg-zinc-700 rounded-t-md">
+                            <Image
+                                alt={file_name}
+                                src={thumbnail_link}
+                                loading="eager"
+                                disableSkeleton
+                                className="rounded-t-md object-cover h-[200px] w-full"
+                            />
+                        </div>
+                    </Skeleton>
+                    <Skeleton
+                        isLoaded={file !== null}
+                        className="rounded-b-lg"
+                    >
+                        <h3 className="truncate w-full h-[30px] bg-zinc-700 rounded-b-md py-1 px-3 font-medium">{file_name}</h3>
+                    </Skeleton>
+                    <Spacer y={3}/>
+                    <Skeleton
+                        isLoaded={file !== null}
+                        className="rounded-lg"
+                    >   
+                        <TagCard tag_ids={file_tag_ids}/>
+                    </Skeleton>
+                </div>
+            </Card>
     );
 }
 
