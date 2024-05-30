@@ -3,10 +3,11 @@ import { DriveListResponse, FileListResponse, GoogleFileModifier, GoogleFile } f
 import { TagList } from "../tag/tag_types";
 import { TAG_FILE_NAME } from "../tag/tag_display";
 
-const ALLOWED_MIME_TYPES = [
+export const ALLOWED_MIME_TYPES = [
     "application/vnd.google-apps.document",
     "application/vnd.google-apps.spreadsheet",
     "application/vnd.google-apps.presentation",
+    "application/vnd.google-apps.form",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -29,6 +30,30 @@ const ALLOWED_MIME_TYPES = [
 
 const ALLOWED_MIME_TYPES_STRING = "((mimeType = '" + ALLOWED_MIME_TYPES.join("') or (mimeType = '") + "'))";
 
+export const MIME_TYPE_TO_NAME: {[id: string]: string} = {
+    "application/vnd.google-apps.document": "Document",
+    "application/vnd.google-apps.spreadsheet": "Spreadsheet",
+    "application/vnd.google-apps.presentation": "Slideshow",
+    "application/vnd.google-apps.form": "Form",
+    "application/msword": "Word Doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "Powerpoint",
+    "application/pdf": "PDF",
+    "application/rtf": "RTF",
+    "text/csv": "CSV",
+    "audio/mpeg": "MP3",
+    "audio/aac": "AAC",
+    "audio/wav": "WAV",
+    "image/png": "PNG",
+    "image/jpeg": "JPG/JPEG",
+    "image/bmp": "BMP",
+    "image/heif": "HEIF/HEIC",
+    "image/gif": "GIF",
+    "video/x-msvideo": "AVI",
+    "video/quicktime": "MOV",
+    "video/x-matroska": "MKV",
+}
 
 export async function get_drive_list(): Promise<DriveListResponse> {
     return google_modular.drives.list({

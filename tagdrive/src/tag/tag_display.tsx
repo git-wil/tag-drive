@@ -1,5 +1,7 @@
 import "../editor/Editor.css";
 import {
+    Autocomplete,
+    AutocompleteItem,
     // Autocomplete,
     // AutocompleteItem,
     // Button,
@@ -17,9 +19,9 @@ import {
 } from "@nextui-org/react";
 import { GoogleFile } from "../drive/google_types.js";
 import { TagID } from "./tag_types.js";
-import { getTagByID } from "./tags_slice.js";
-import { useAppSelector } from "../store/hooks.js";
-import { getFilesLoaded } from "../drive/files_slice.js";
+import { getTagByID, getTags } from "./tags_slice.js";
+import { useAppDispatch, useAppSelector } from "../store/hooks.js";
+import { getFilesLoaded, getSelectedFile, setSelectedFile } from "../drive/files_slice.js";
 
 export const TAG_FILE_NAME = "TagOperatorOfficialTagList.json";
 
@@ -57,11 +59,11 @@ function TagElement(props: {tag_id: TagID}) {
     );
 }
 
-function TagCard(props: {tag_ids: TagID[]}) {
+export function TagCard(props: {tag_ids: TagID[]}) {
     const tag_ids = props.tag_ids;
     return (
         <Card
-            className="flex-row flex-wrap overflow-auto border-none bg-zinc-700 h-[90px] rounded-md p-2 gap-2">
+            className="flex-row flex-wrap overflow-auto border-none bg-zinc-700 h-[90px] w-full rounded-md p-2 gap-2">
             {
                 tag_ids.map((tag_id) => (
                     <TagElement tag_id={tag_id} key={tag_id}/>
@@ -72,8 +74,10 @@ function TagCard(props: {tag_ids: TagID[]}) {
 }
 
 export function FileCard(props: {file: GoogleFile | null}) {
+    const dispatch = useAppDispatch();
     const file = props.file;
     const file_name = file?.name;
+    // TODO: Show in top right corner?
     const file_type = file?.mimeType;
     // TODO: use thumbnailLink instead of iconLink, google drive just
     // hates me sometimes and doesn't want to display thumbnails
@@ -86,13 +90,22 @@ export function FileCard(props: {file: GoogleFile | null}) {
                 isPressable
                 isHoverable
                 disableRipple
-                onClick={()=>{console.log("Clicked")}}
+                id={`file-card-${file?.id || "null"}`}
+                onClick={()=>{
+                    if (file === null) return;
+                    dispatch(setSelectedFile(file));
+                    document.getElementById(`file-card-${file.id}`)?.focus();
+                }}
+                onFocusCapture={() => {
+                    console.log("Focused", file?.name);
+                }}
                 onDoubleClick={(e)=>{
+                    if (file === null) return;
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log("Double Clicked");
+                    window.open(file.webViewLink, '_blank')!.focus()
                 }}
-                className="border-none bg-zinc-900 rounded-2xl ">
+                className="border-none bg-zinc-900 rounded-2xl">
                 <div className="w-full h-full items-center justify-center p-2">
                     <Skeleton
                         isLoaded={file !== null}
@@ -104,6 +117,7 @@ export function FileCard(props: {file: GoogleFile | null}) {
                                 src={thumbnail_link}
                                 loading="eager"
                                 disableSkeleton
+                                // crossOrigin="anonymous"    
                                 className="rounded-t-md object-cover h-[200px] w-full"
                             />
                         </div>
@@ -123,6 +137,31 @@ export function FileCard(props: {file: GoogleFile | null}) {
                     </Skeleton>
                 </div>
             </Card>
+    );
+}
+
+
+
+export function AddTagsCard() {
+
+    const selectedFile = useAppSelector(getSelectedFile);
+    const tags = useAppSelector(getTags);
+    return (
+        <Autocomplete
+        variant="bordered"
+        label="Add a tag" >
+            {
+                Object.entries(tags).map(([tag_id, tag]) => (
+                    <AutocompleteItem key={tag_id} value={tag.name}>
+                        {tag.name}
+                    </AutocompleteItem>
+                ))
+            }
+        </Autocomplete>
+        // <Card
+        //     className="flex-row flex-wrap overflow-auto border-none bg-zinc-700 h-[90px] w-full rounded-md p-2 gap-2">
+            
+        // </Card>
     );
 }
 

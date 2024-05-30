@@ -8,7 +8,8 @@ export const filesSlice = createSlice({
   name: 'files',
   initialState: {
     files: initial_files,
-    files_loaded: false
+    files_loaded: false,
+    selected_file: null as GoogleFile | null,
   },
   reducers: {
     setFiles: (state, action) => {
@@ -21,12 +22,15 @@ export const filesSlice = createSlice({
     setFilesLoaded: (state, action) => {
       state.files_loaded = action.payload;
     },
+    setSelectedFile: (state, action) => {
+      state.selected_file = action.payload;
+    },
   }
 })
 
-export const { setFiles, setFilesLoaded } = filesSlice.actions
+export const { setFiles, setFilesLoaded, setSelectedFile } = filesSlice.actions
 export const getFiles = (state: RootState) => state.files.files
 export const getFilesLoaded = (state: RootState) => state.files.files_loaded
-
+export const getSelectedFile = (state: RootState) => state.files.selected_file
 
 export default filesSlice.reducer

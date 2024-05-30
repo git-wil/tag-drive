@@ -23,8 +23,9 @@ import { Tag } from "../tag/tag_types";
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { getFiles, getFilesLoaded, setFiles, setFilesLoaded } from "../drive/files_slice";
+import { getFiles, getFilesLoaded, getSelectedFile, setFiles, setFilesLoaded } from "../drive/files_slice";
 import { getTagFileID, getTagFileMetadata, getTags, setTagFileID, setTagFileMetaData, setTags } from "../tag/tags_slice";
+import { Sidebar } from "./sidebar";
 
 
 let initialized = false;
@@ -47,14 +48,15 @@ TODO Editor:
 - adaptive rendering of ~30 files at a time as you scroll
 - consider what to show if a file has no tags
 - buttons at top right (create new file? sign out/switch drive?)
+- export tag metadata (no files) and import (between drives)
 */
 
 
 
 function Editor() {
-    const selectedFile = null;
     const dispatch = useAppDispatch()
     const files = useAppSelector(getFiles)
+    const selectedFile = useAppSelector(getSelectedFile);
     // const tags = useAppSelector(getTags)
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
@@ -131,25 +133,11 @@ function Editor() {
                                     }
                                 </div>
                             </Card>
-                            <Card
-                              id="sidebar"
-                              className="col-span-6 md:col-span-4 lg:col-span-3 xl:col-span-2 space-y-5 p-4 h-full" radius="lg">
-                                <div className="w-full h-[200px] lg:h-[200px] md:h-[200px] sm:h-[200px] rounded-lg bg-default-300"></div>
-                                {selectedFile !== null
-                                    ? <div className="w-full lg:h-350 md:h-200 sm:h-50 rounded-lg bg-default-300"></div>
-                                    : null}
-                                <div className="space-y-3">
-                                    <Skeleton className="w-3/5 rounded-sm">
-                                    <div className="h-3 w-3/5 rounded-lg bg-default-200"></div>
-                                    </Skeleton>
-                                    <Skeleton className="w-4/5 rounded-lg">
-                                    <div className="h-3 w-4/5 rounded-lg bg-default-200"></div>
-                                    </Skeleton>
-                                    <Skeleton className="w-2/5 rounded-lg">  
-                                    <div className="h-3 w-2/5 rounded-lg bg-default-300"></div>
-                                    </Skeleton>
-                                </div>
-                            </Card>
+                            <div 
+                            id="sidebar"
+                            className="col-span-6 md:col-span-4 lg:col-span-3 xl:col-span-2 h-full w-full">
+                                <Sidebar/>
+                            </div>
                         </div>
                     </CardBody>
                 </Card>
