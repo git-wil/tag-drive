@@ -13,7 +13,8 @@ export const tagsSlice = createSlice({
   initialState: {
     tags: {} as TagList,
     tag_file_id: "",
-    tag_file_metadata: {} as GoogleFile
+    tag_file_metadata: {} as GoogleFile,
+    typed_tags: [] as TagID[],
   },
   reducers: {
     setTags: (state, action) => {
@@ -32,7 +33,7 @@ export const tagsSlice = createSlice({
   },
 })
 
-export const { setTags, setTagFileID, setTagFileMetaData } = tagsSlice.actions
+export const { setTags, setTagFileID, setTagFileMetaData} = tagsSlice.actions
 
 export const getTags = (state: RootState) => state.tags.tags
 export const getTagFileID = (state: RootState) => state.tags.tag_file_id

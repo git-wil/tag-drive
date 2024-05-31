@@ -2,6 +2,7 @@ import "../editor/Editor.css";
 import {
     Autocomplete,
     AutocompleteItem,
+    Button,
     // Autocomplete,
     // AutocompleteItem,
     // Button,
@@ -22,24 +23,72 @@ import { TagID } from "./tag_types.js";
 import { getTagByID, getTags } from "./tags_slice.js";
 import { useAppDispatch, useAppSelector } from "../store/hooks.js";
 import { getFilesLoaded, getSelectedFile, setSelectedFile } from "../drive/files_slice.js";
+import { useState } from "react";
+import { getTypedTags, getValue, setTypedTags, setValue } from "./tag_search_slice.js";
+
+import Fuse from "fuse.js";
+
 
 export const TAG_FILE_NAME = "TagOperatorOfficialTagList.json";
 
 
-export function TagSearchBox() {
+export function TagSearchBox(props: {[popover_id: string]: string}) {
+    const dispatch = useAppDispatch();
+    const popover_id = props.popover_id;
+    const [hidden, setHidden] = useState(true);
+    const typed_tags = useAppSelector(getTypedTags);
+    const tags = useAppSelector(getTags);
+    const value = useAppSelector(getValue);
     return (
         <div className={"items-center justify-center"}>
             <Input
                 variant="bordered"
-                label="Search"
-                placeholder="Enter your search here..."
-                className="w-full"
+                label={<div className= "my-2">Search</div>}
+                placeholder={typed_tags.length == 0 ? "Type a tag or file name..." : ""}
+                classNames={{
+                    base: "h-full",
+                    mainWrapper: "h-full",
+                    inputWrapper: "h-[65px]",
+                    input: "mb-0.5 text-md"
+                }}
+                labelPlacement="inside"
+                startContent={<div className="flex gap-2">
+                    {
+                        typed_tags.map((tag_id) => (
+                            <TagElement tag_id={tag_id} key={tag_id}/>
+                        ))
+                    }
+                </div>}
+                onFocus={() => {
+                    console.log("Hidden False")
+                    setHidden(false);
+                    
+                }}
+                onBlur={() => {
+                    console.log("Hidden true")
+                    setHidden(true);
+                }}
+                value={value}
                 onValueChange={
                     (value) => {
-                        console.log(value);
+                        dispatch(setValue(value))
+                        if (Object.keys(tags).includes(value)) {
+                            dispatch(setTypedTags([...typed_tags, value]));
+                            dispatch(setValue(""));
+
+                        }
                     }
                 }
+                onKeyDown={(e) => {
+                    if (e.key === "Backspace" && typed_tags.length > 0 && value === "") {
+                        dispatch(setTypedTags(typed_tags.slice(0, typed_tags.length - 1)));
+                    }
+                }}
             />
+            {/* <Card id={popover_id} hidden={hidden} className="absolute w-full z-50 bg-transparent shadow-none    " >
+                <div className="mx-2 my-0.5 z-50 min-w-[300px] w-1/3 bg-default-200 rounded-2xl px-4 py-2 shadow-xl">Test</div>
+            </Card> */}
+            
         </div>
     );
 
@@ -81,8 +130,8 @@ export function FileCard(props: {file: GoogleFile | null}) {
     const file_type = file?.mimeType;
     // TODO: use thumbnailLink instead of iconLink, google drive just
     // hates me sometimes and doesn't want to display thumbnails
-    // const thumbnail_link = file?.thumbnailLink
-    const thumbnail_link = file?.iconLink;
+    const thumbnail_link = file?.thumbnailLink
+    // const thumbnail_link = file?.iconLink;
     const file_tag_ids = Math.random() > 0.5 ? ["TagFile0", "TagFile1"] : ["TagFile1", "TagFile2"];
     return (
             <Card

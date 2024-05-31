@@ -11,6 +11,7 @@
         rgba(177, 4, 184, 1) 100%
     );
     height: 100%;
+    overflow: auto;
 }
 
 .form-btn button {

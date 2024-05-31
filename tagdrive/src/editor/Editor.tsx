@@ -27,7 +27,6 @@ import { getFiles, getFilesLoaded, getSelectedFile, setFiles, setFilesLoaded } f
 import { getTagFileID, getTagFileMetadata, getTags, setTagFileID, setTagFileMetaData, setTags } from "../tag/tags_slice";
 import { Sidebar } from "./sidebar";
 
-
 let initialized = false;
 
 const drive_id = "";
@@ -38,24 +37,24 @@ const drive_id = "";
 TODO Editor:
 - figure out tags lol ✔
     - i guess just modify tag file as a google doc ✔
-- list files from only specific drive, not just my drive ✔
-- sidebar (single click)
-    - show thumbnail, full name, tags
+- list files from only specific drive, not just my drive ✔ (not working)
+- sidebar (single click) 
+    - show thumbnail, full name, tags ✔
     - add tags
     - create new tag
 - make searching work
-- double click to open file with weblink
+- double click to open file with weblink ✔
 - adaptive rendering of ~30 files at a time as you scroll
 - consider what to show if a file has no tags
 - buttons at top right (create new file? sign out/switch drive?)
 - export tag metadata (no files) and import (between drives)
+- make keyboard shortcuts for everything
 */
 
 
-
 function Editor() {
-    const dispatch = useAppDispatch()
-    const files = useAppSelector(getFiles)
+    const dispatch = useAppDispatch();
+    const files = useAppSelector(getFiles);
     const selectedFile = useAppSelector(getSelectedFile);
     // const tags = useAppSelector(getTags)
     // const tag_file_id = useAppSelector(getTagFileID)
@@ -81,18 +80,18 @@ function Editor() {
 
     return (
         <>  
-            <div className="flex align-middle justify-center">
+            <div className="align-middle justify-center h-full">
                 <Card
                     isBlurred
                     shadow="sm"
                     fullWidth
-                    className="border-none bg-background/60 dark:bg-default-100/50"
+                    className="border-none bg-background/60 dark:bg-default-100/50 h-full"
                 >
                     <CardBody>
                         <div className="grid grid-cols-12 gap-2 items-center justify-center">
                             <div 
                               id="search-bar"
-                              className="col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10">
+                              className="col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10 w-full h-full">
                                 <TagSearchBox/>
                                 {/* <TagSearchBox
                                     selectedKeys={selectedTags} 
@@ -122,7 +121,7 @@ function Editor() {
                             </div>
                             <Card
                               id= "file-list"
-                              className="overflow-auto col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10 border-none bg-background/60 dark:bg-default-100/50 h-[780px] rounded-3xl">
+                              className="overflow-auto col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10 border-none bg-background/60 dark:bg-default-100/50 h-[750px] rounded-3xl">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-2 items-center justify-center p-2">
                                     {
                                         files.map((item, index) => {
