@@ -18,14 +18,14 @@ import { GoogleFile } from "../drive/google_types";
 import { delete_tag_files_in_drive, get_drive_list, get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
 import { authorize } from "../drive/auth";
 import { FileCard, TagSearchBox } from "../tag/tag_display";
-import { Tag } from "../tag/tag_types";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { getFiles, getFilesLoaded, getSelectedFile, setFiles, setFilesLoaded } from "../drive/files_slice";
-import { getTagFileID, getTagFileMetadata, getTags, setTagFileID, setTagFileMetaData, setTags } from "../tag/tags_slice";
+import { clearSelectedFiles, getFiles, getSelectedFiles, setFiles, setFilesLoaded } from "../drive/files_slice";
+import { setFileTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
 import { Sidebar } from "./sidebar";
+import { TagFile } from "../tag/tag_types";
 
 let initialized = false;
 
@@ -38,6 +38,18 @@ TODO Editor:
 - figure out tags lol ✔
     - i guess just modify tag file as a google doc ✔
 - list files from only specific drive, not just my drive ✔ (not working)
+- goodbye old sidebar
+- hello new sidebar
+    - tag panel (list of all tags, children tags are indented under parents like a tree)
+    - tools bar (bomb to delete all tags, dynamite to delete one color (whatever tag is hovered))
+    - tag search bar (fuse, shows all tags that match search)
+    - plus button to open new tag modal
+- modal for new tag creation
+    - name
+    - color
+    - parent tag (optional)
+    - aliases (optional)
+
 - sidebar (single click) 
     - show thumbnail, full name, tags ✔
     - add tags
@@ -55,7 +67,6 @@ TODO Editor:
 function Editor() {
     const dispatch = useAppDispatch();
     const files = useAppSelector(getFiles);
-    const selectedFile = useAppSelector(getSelectedFile);
     // const tags = useAppSelector(getTags)
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
@@ -65,9 +76,10 @@ function Editor() {
         get_tag_file_metadata(drive_id).then((metadata) => {
             console.log("Got metadata", metadata)
             dispatch(setTagFileMetaData(metadata));
-            get_tag_file_data(metadata).then((data) => {
+            get_tag_file_data(metadata).then((data: TagFile) => {
                 console.log("Got data", data);
-                dispatch(setTags(data));
+                dispatch(setTagMetadata(data.TAG_DATA));
+                dispatch(setFileTags(data.FILE_DATA));
                 get_file_list(drive_id).then((response) => {
                     console.log("running");
                     dispatch(setFiles(response.files));
@@ -80,7 +92,10 @@ function Editor() {
 
     return (
         <>  
-            <div className="align-middle justify-center h-full">
+            <div className="align-middle justify-center h-full p-8"
+            onClick={()=>{
+                dispatch(clearSelectedFiles());
+            }}>
                 <Card
                     isBlurred
                     shadow="sm"
@@ -106,9 +121,11 @@ function Editor() {
                                 <Button
                                     className="w-full h-full"
                                     onClick={async () => {
-                                        console.log("Filler Button Clicked");
+                                        console.log("Filler Button 1 Clicked");
+                                        await delete_tag_files_in_drive(drive_id);
+                                        console.log("Deleted files");
                                     }}
-                                    >Filler Button</Button>
+                                    >Filler Button 1</Button>
                                 </div>
                                 <div className="col-span-1 h-full">
                                     <Button
@@ -121,12 +138,12 @@ function Editor() {
                             </div>
                             <Card
                               id= "file-list"
-                              className="overflow-auto col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10 border-none bg-background/60 dark:bg-default-100/50 h-[750px] rounded-3xl">
+                              className="overflow-auto scrollbar col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10 border-none bg-background/60 dark:bg-default-100/50 h-[750px] rounded-3xl">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-2 items-center justify-center p-2">
                                     {
                                         files.map((item, index) => {
                                             return (
-                                                <FileCard file={item} key={index}/>
+                                                <FileCard file={item} index={index} key={index}/>
                                             );
                                         })
                                     }

@@ -1,6 +1,6 @@
 import google_modular from "./google_modular";
 import { DriveListResponse, FileListResponse, GoogleFileModifier, GoogleFile } from "./google_types";
-import { TagList } from "../tag/tag_types";
+import { TagFile, TagList } from "../tag/tag_types";
 import { TAG_FILE_NAME } from "../tag/tag_display";
 
 export const ALLOWED_MIME_TYPES = [
@@ -77,28 +77,34 @@ export async function get_file_list(drive_id: string): Promise<FileListResponse>
 async function create_tag_file(drive_id: string): Promise<string> {
     console.log("Creating tag file");
     const fileData = JSON.stringify({
-        "TagFile0": {
-            "color": "red-800",
-            "name": "TagFile0",
-            "aliases": [],
-            "children": [],
-            "files": ["File0"]
+        TAG_DATA: {
+            "TagFile0": {
+                "color": "red-800",
+                "name": "TagFile0",
+                "aliases": [],
+                "children": [],
+            },
+            "TagFile1":{
+                "color": "purple-800",
+                "name": "TagFile1",
+                "aliases": [],
+                "children": [],
+            },
+            "TagFile2":{
+                "color": "teal-700",
+                "name": "TagFile2",
+                "aliases": [],
+                "children": [],
+            }
         },
-        "TagFile1":{
-            "color": "purple-800",
-            "name": "TagFile1",
-            "aliases": [],
-            "children": [],
-            "files": []
-        },
-        "TagFile2":{
-            "color": "teal-700",
-            "name": "TagFile2",
-            "aliases": [],
-            "children": [],
-            "files": ["File0"]
+        FILE_DATA: {
+            "": {
+                "tags": [],
+                "search_string": "",
+            }
         }
-    });
+
+    } as TagFile);
     const fileMetadata: GoogleFileModifier = {
         name: TAG_FILE_NAME,
         parents: [drive_id || "root"],

@@ -11,7 +11,7 @@ export function Sidebar() {
     const filesLoaded = useAppSelector(getFilesLoaded);
     return (
         <Card
-            className="space-y-5 p-4 w-full h-full" radius="lg">
+            className="space-y-5 p-4 w-full h-full rounded-tl-lg" radius="lg">
             <Skeleton className="rounded-lg" isLoaded={filesLoaded}>
                 <div className="flex-1 w-full h-full rounded-lg bg-default-300">
                     {selectedFile !== null ? 
@@ -27,7 +27,7 @@ export function Sidebar() {
                                             className="w-full h-max object-cover rounded-lg"
                                             aria-label="File Thumbnail"
                                             disableSkeleton
-                                            // crossOrigin="anonymous"
+                                            referrerPolicy="no-referrer"
                                         ></Image>);
                             })()}
                         </Card> :

@@ -20,11 +20,13 @@ import {
 } from "@nextui-org/react";
 import { GoogleFile } from "../drive/google_types.js";
 import { TagID } from "./tag_types.js";
-import { getTagByID, getTags } from "./tags_slice.js";
+import { addTagToFileID, getFileTagsByID, getTagByID, getTagMetadata } from "./tags_slice.js";
 import { useAppDispatch, useAppSelector } from "../store/hooks.js";
-import { getFilesLoaded, getSelectedFile, setSelectedFile } from "../drive/files_slice.js";
+import { appendSelectedFile, clearSelectedFiles, getDraggedOver, getFiles, getFilesLoaded, getSelectedFile, getSelectedFiles, isSelectedFile, removeSelectedFile, resetDraggedOver, setDraggedOver, setSelectedFile, setSelectedFiles, toggleSelectedFile } from "../drive/files_slice.js";
 import { useState } from "react";
 import { getTypedTags, getValue, setTypedTags, setValue } from "./tag_search_slice.js";
+
+import { motion } from "framer-motion";
 
 import Fuse from "fuse.js";
 
@@ -37,14 +39,15 @@ export function TagSearchBox(props: {[popover_id: string]: string}) {
     const popover_id = props.popover_id;
     const [hidden, setHidden] = useState(true);
     const typed_tags = useAppSelector(getTypedTags);
-    const tags = useAppSelector(getTags);
+    const tags = useAppSelector(getTagMetadata);
     const value = useAppSelector(getValue);
     return (
         <div className={"items-center justify-center"}>
             <Input
                 variant="bordered"
-                label={<div className= "my-2">Search</div>}
+                label={<div className= "my-1.5">Search</div>}
                 placeholder={typed_tags.length == 0 ? "Type a tag or file name..." : ""}
+                isClearable
                 classNames={{
                     base: "h-full",
                     mainWrapper: "h-full",
@@ -55,7 +58,7 @@ export function TagSearchBox(props: {[popover_id: string]: string}) {
                 startContent={<div className="flex gap-2">
                     {
                         typed_tags.map((tag_id) => (
-                            <TagElement tag_id={tag_id} key={tag_id}/>
+                            <DraggableTagElement tag_id={tag_id} key={tag_id}/>
                         ))
                     }
                 </div>}
@@ -102,16 +105,24 @@ function TagElement(props: {tag_id: TagID}) {
         return <div></div>;
     }
     return (
-        <div className={`h-[30px] w-fit p-2 px-3 bg-${tag.color} rounded-full tag`}>
+        <motion.div 
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{
+            type: "spring",
+            stiffness: 260,
+            damping: 20
+        }}
+        className={`h-[30px] w-fit pt-1.5 p-2 px-3 bg-${tag.color} rounded-full`}>
             <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
-        </div>
+        </motion.div>
     );
 }
 
 export function TagCard(props: {tag_ids: TagID[]}) {
     const tag_ids = props.tag_ids;
     return (
-        <Card
+        <Card 
             className="flex-row flex-wrap overflow-auto border-none bg-zinc-700 h-[90px] w-full rounded-md p-2 gap-2">
             {
                 tag_ids.map((tag_id) => (
@@ -122,39 +133,121 @@ export function TagCard(props: {tag_ids: TagID[]}) {
     );
 }
 
-export function FileCard(props: {file: GoogleFile | null}) {
+function DraggableTagElement(props: {tag_id: TagID}) {
+    const dispatch = useAppDispatch();
+    const tag_id = props.tag_id;
+    const tag = useAppSelector((state) => getTagByID(state, tag_id));
+    const files = useAppSelector(getFiles);
+    const files_loaded = useAppSelector(getFilesLoaded);
+    const dragged_over = useAppSelector(getDraggedOver);
+    const selected_files = useAppSelector(getSelectedFiles);
+    if (!files_loaded) {
+        return <div></div>;
+    }
+    return (
+        <div 
+        draggable
+        onDrag={(e) => {
+            e.preventDefault();
+            e.dataTransfer.setData("tag", tag_id);
+            e.dataTransfer.dropEffect = "copy";
+        }}
+        onDragEnd={() => {
+            dragged_over.forEach((file_index) => {
+                dispatch(addTagToFileID({tag_id: tag_id, file_id: files[file_index].id}))
+            });
+            // TODO: Consider clearing selected files after drag?
+            // if (dragged_over == selected_files) {
+            //     dispatch(clearSelectedFiles());
+            // }
+            dispatch(resetDraggedOver());
+        }}
+        className={`flex h-[30px] w-fit pt-1.5 pe-3 ps-1 bg-${tag.color} rounded-full cursor-move tag-element`}>
+            <div className="w-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                </svg>
+            </div>
+            <div className="w-1 me-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                </svg>
+            </div>
+            
+
+
+            <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
+        </div>
+    );
+}
+
+export function FileCard(props: {file: GoogleFile | null, index: number}) {
     const dispatch = useAppDispatch();
     const file = props.file;
+    const index = props.index;
     const file_name = file?.name;
     // TODO: Show in top right corner?
-    const file_type = file?.mimeType;
+    // const file_type = file?.mimeType;
+    const dragged_over_index = useAppSelector(getDraggedOver);
+    const selected_files = useAppSelector(getSelectedFiles);
+    const is_selected = useAppSelector(isSelectedFile(index));
+
+    const last_selected_file = selected_files.length > 0 ? selected_files[selected_files.length - 1] : null;
     // TODO: use thumbnailLink instead of iconLink, google drive just
     // hates me sometimes and doesn't want to display thumbnails
     const thumbnail_link = file?.thumbnailLink
     // const thumbnail_link = file?.iconLink;
-    const file_tag_ids = Math.random() > 0.5 ? ["TagFile0", "TagFile1"] : ["TagFile1", "TagFile2"];
+    const file_tag_ids = useAppSelector((state) => getFileTagsByID(state, file?.id || "")) || {tags: []};
     return (
             <Card
                 isBlurred={false}
                 isPressable
                 isHoverable
                 disableRipple
-                id={`file-card-${file?.id || "null"}`}
-                onClick={()=>{
-                    if (file === null) return;
-                    dispatch(setSelectedFile(file));
-                    document.getElementById(`file-card-${file.id}`)?.focus();
-                }}
-                onFocusCapture={() => {
-                    console.log("Focused", file?.name);
-                }}
+                id={`file-card-${index}`}
                 onDoubleClick={(e)=>{
                     if (file === null) return;
                     e.preventDefault();
                     e.stopPropagation();
                     window.open(file.webViewLink, '_blank')!.focus()
                 }}
-                className="border-none bg-zinc-900 rounded-2xl">
+                onClick={(e)=>{
+                    if (file === null) return;
+                    if (e.ctrlKey) {
+                        dispatch(toggleSelectedFile(index));
+                    } else if (e.shiftKey && last_selected_file !== null) {
+                        // Add all files between the first selected file and this file
+                        if (index > last_selected_file) {
+                            for (let i = last_selected_file+1; i <= index; i++) {
+                                dispatch(toggleSelectedFile(i));
+                            }
+                        } else {
+                            for (let i = index; i < last_selected_file; i++) {
+                                dispatch(toggleSelectedFile(i));
+                            }
+                        }
+                    } else {
+                        dispatch(clearSelectedFiles());
+                        dispatch(appendSelectedFile(index));
+                    }
+                }}
+                onDragEnter={(e) => {
+                    e.preventDefault();
+                    if (selected_files.length > 0 && selected_files.includes(index)) {
+                        // Add tag to all selected files
+                        dispatch(setDraggedOver(selected_files));
+                    } else {
+                        dispatch(setDraggedOver([index]));
+                    }
+                }}
+                onDragOver={(e) => {
+                    e.preventDefault();
+                }}
+                className={`border-none bg-zinc-900 rounded-2xl ${
+                    is_selected ? "ring-2 ring-primary-400" : ""
+                } ${
+                    dragged_over_index.includes(index) ? "ring-2 ring-secondary-500" : ""
+                }`}>
                 <div className="w-full h-full items-center justify-center p-2">
                     <Skeleton
                         isLoaded={file !== null}
@@ -166,7 +259,8 @@ export function FileCard(props: {file: GoogleFile | null}) {
                                 src={thumbnail_link}
                                 loading="eager"
                                 disableSkeleton
-                                // crossOrigin="anonymous"    
+                                // crossOrigin="anonymous"
+                                referrerPolicy="no-referrer"
                                 className="rounded-t-md object-cover h-[200px] w-full"
                             />
                         </div>
@@ -182,7 +276,7 @@ export function FileCard(props: {file: GoogleFile | null}) {
                         isLoaded={file !== null}
                         className="rounded-lg"
                     >   
-                        <TagCard tag_ids={file_tag_ids}/>
+                        <TagCard tag_ids={file_tag_ids.tags}/>
                     </Skeleton>
                 </div>
             </Card>
@@ -194,7 +288,7 @@ export function FileCard(props: {file: GoogleFile | null}) {
 export function AddTagsCard() {
 
     const selectedFile = useAppSelector(getSelectedFile);
-    const tags = useAppSelector(getTags);
+    const tags = useAppSelector(getTagMetadata);
     return (
         <Autocomplete
         variant="bordered"

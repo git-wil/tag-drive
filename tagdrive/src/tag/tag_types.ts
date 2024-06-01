@@ -7,8 +7,26 @@ export type Tag = {
     name: string;
     aliases: string[];
     children: TagID[];
-    files: FileID[];
 };
+
+export type TagFile = {
+    TAG_DATA: {
+        [tag_id: TagID]: {
+            color: string,
+            name: string,
+            aliases: TagID[],
+            children: TagID[],
+        }
+    },
+    FILE_DATA: FileTagData,
+}
+
+export type FileTagData = {
+    [file_id: FileID]: {
+        tags: TagID[],
+        search_string: string,
+    }
+}
 
 export type TagList = {
     [id: TagID]: Tag;

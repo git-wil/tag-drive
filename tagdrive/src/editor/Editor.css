@@ -1,8 +1,7 @@
-#root {
+:root {
   max-width: 1920px;
   margin: 0 auto;
-  max-height: 100vh;
-  padding: 2rem;
+  max-height: 100%;
   text-align: center; 
 }
 

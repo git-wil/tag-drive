@@ -1,7 +1,7 @@
 import { createSelector, createSlice } from '@reduxjs/toolkit'
 import { RootState } from '../store/store.js';
 import { tag_colors } from "../../tailwind.config.js";
-import { Tag, TagID, TagList } from "./tag_types.js";
+import { FileID, FileTagData, Tag, TagFile, TagID, TagList } from "./tag_types.js";
 import { GoogleFile } from '../drive/google_types.js';
 
 
@@ -9,40 +9,71 @@ const allowed_colors = tag_colors;
 
 
 export const tagsSlice = createSlice({
-  name: 'tags',
-  initialState: {
-    tags: {} as TagList,
-    tag_file_id: "",
-    tag_file_metadata: {} as GoogleFile,
-    typed_tags: [] as TagID[],
-  },
-  reducers: {
-    setTags: (state, action) => {
-      // Redux Toolkit allows us to write "mutating" logic in reducers. It
-      // doesn't actually mutate the state because it uses the immer library,
-      // which detects changes to a "draft state" and produces a brand new
-      // immutable state based off those changes
-      state.tags = action.payload;
+    name: 'tags',
+    initialState: {
+        tag_metadata: {} as TagList,
+        tag_file_id: "",
+        tag_file_metadata: {} as GoogleFile,
+        file_tags: {} as FileTagData,
+        typed_tags: [] as TagID[],
     },
-    setTagFileID: (state, action) => {
-      state.tag_file_id = action.payload;
+    reducers: {
+        setTagMetadata: (state, action) => {
+            state.tag_metadata = action.payload;
+        },
+        setTagFileID: (state, action) => {
+            state.tag_file_id = action.payload;
+        },
+        setTagFileMetaData: (state, action) => {
+            state.tag_file_metadata = action.payload;
+        },
+        setFileTags: (state, action) => {
+            state.file_tags = action.payload;
+        },
+        addTagToFileID: (state, action) => {
+            const tag_id = action.payload.tag_id;
+            const file_id = action.payload.file_id;
+            if (!state.file_tags[file_id]) {
+                // Initialize the file in the file_tags object
+                state.file_tags[file_id] = {
+                    tags: [],
+                    search_string: "",
+                }
+            } 
+            if (!state.file_tags[file_id].tags.includes(tag_id)) {
+                state.file_tags[file_id].tags.push(tag_id);
+            }
+            // const tag = state.tag_metadata[tag_id];
+            // const this_search = tag.aliases.join(" ") + " " + tag.name;
+            // const children_search = tag.children.map((child) => generate_search_string(state.tag_metadata[child])).join(" ");
+            // state.file_tags[file_id].search_string = this_search + " " + children_search;
+        },
     },
-    setTagFileMetaData: (state, action) => {
-      state.tag_file_metadata = action.payload;
-    },
-  },
 })
 
-export const { setTags, setTagFileID, setTagFileMetaData} = tagsSlice.actions
+export const {
+    setTagMetadata,
+    setTagFileID,
+    setTagFileMetaData,
+    setFileTags,
+    addTagToFileID,
+} = tagsSlice.actions
 
-export const getTags = (state: RootState) => state.tags.tags
+export const getTagMetadata = (state: RootState) => state.tags.tag_metadata
 export const getTagFileID = (state: RootState) => state.tags.tag_file_id
 export const getTagFileMetadata = (state: RootState) => state.tags.tag_file_metadata
+export const getFileTags = (state: RootState) => state.tags.file_tags
 
 const getTagID = (state: RootState, id: TagID) => id
 export const getTagByID = createSelector(
-  [getTags, getTagID],
-  (tags: TagList, tagId: TagID) => tags[tagId]
+    [getTagMetadata, getTagID],
+    (tags: TagList, tagId: TagID) => tags[tagId]
+)
+
+const getFileTagsID = (state: RootState, id: FileID) => id
+export const getFileTagsByID = createSelector(
+    [getFileTags, getFileTagsID],
+    (file_tags: FileTagData, fileID: FileID) => file_tags[fileID]
 )
 
 
