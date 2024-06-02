@@ -1,7 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 import { RootState } from '../store/store';
-import { GoogleFile } from './google_types'
-import { toggle } from '@nextui-org/react';
+import { GoogleFile } from './google_types';
 
 const initial_files: GoogleFile[] = Array(30).fill(null as GoogleFile | null)
 
@@ -10,8 +9,11 @@ export const filesSlice = createSlice({
   initialState: {
     files: initial_files,
     files_loaded: false,
-    selected_file: null as GoogleFile | null,
+    queried_files: initial_files,
+    visible_files: 30,
+    standard_visible_files: 30,
     selected_files: [] as number[],
+    dragging: {type: "", id: ""},
     dragged_over: [] as number[],
   },
   reducers: {
@@ -20,13 +22,18 @@ export const filesSlice = createSlice({
       // doesn't actually mutate the state because it uses the immer library,
       // which detects changes to a "draft state" and produces a brand new
       // immutable state based off those changes
+      console.log("Setting files", action.payload)
       state.files = action.payload;
     },
     setFilesLoaded: (state, action) => {
       state.files_loaded = action.payload;
     },
-    setSelectedFile: (state, action) => {
-      state.selected_file = action.payload;
+    setVisibleFiles: (state, action) => {
+      state.visible_files = Math.min(action.payload, state.queried_files.length);
+    },
+    setQueriedFiles: (state, action) => {
+      state.queried_files = action.payload;
+      state.visible_files = Math.min(state.standard_visible_files, action.payload.length)
     },
     setSelectedFiles: (state, action) => {
       state.selected_files = action.payload;
@@ -35,9 +42,30 @@ export const filesSlice = createSlice({
       state.selected_files = []
     },
     appendSelectedFile: (state, action) => {
-      if (!state.selected_files.includes(action.payload)) {
-        state.selected_files.push(action.payload)
+      const index = action.payload;
+      if (state.selected_files.includes(index)) {
+        state.selected_files.splice(state.selected_files.indexOf(index), 1)
       }
+      state.selected_files.push(index)
+    },
+    appendSelectedFilesBetween: (state, action) => {
+      const [start, end] = action.payload
+      if (start > end) {
+        for (let index = start; index >= end; index--) {
+          if (state.selected_files.includes(index)) {
+            state.selected_files.splice(state.selected_files.indexOf(index), 1)
+          }
+          state.selected_files.push(index)
+        }
+      } else {
+        for (let index = start; index <= end; index++) {
+          if (state.selected_files.includes(index)) {
+            state.selected_files.splice(state.selected_files.indexOf(index), 1)
+          }
+          state.selected_files.push(index)
+        }
+      }
+      
     },
     removeSelectedFile: (state, action) => {
       // By index
@@ -56,27 +84,39 @@ export const filesSlice = createSlice({
     },
     resetDraggedOver: (state) => {
       state.dragged_over = []
-    }
+    },
+    setDragging: (state, action) => {
+      state.dragging = action.payload
+    },
+    resetDragging: (state) => {
+      state.dragging = {type: "", id: ""}
+    },
   }
 })
 
 export const {
   setFiles,
   setFilesLoaded,
-  setSelectedFile,
   setSelectedFiles,
+  setVisibleFiles,
+  setQueriedFiles,
   clearSelectedFiles,
   appendSelectedFile,
+  appendSelectedFilesBetween,
   removeSelectedFile,
   toggleSelectedFile,
   setDraggedOver,
   resetDraggedOver,
+  setDragging,
+  resetDragging,
 } = filesSlice.actions
 export const getFiles = (state: RootState) => state.files.files
 export const getFilesLoaded = (state: RootState) => state.files.files_loaded
-export const getSelectedFile = (state: RootState) => state.files.selected_file
+export const getVisibleFiles = (state: RootState) => state.files.visible_files
+export const getQueriedFiles = (state: RootState) => state.files.queried_files
 export const getSelectedFiles = (state: RootState) => state.files.selected_files
 export const isSelectedFile = (index: number) => ((state: RootState) => state.files.selected_files.includes(index))
 export const getDraggedOver = (state: RootState) => state.files.dragged_over
+export const getDragging = (state: RootState) => state.files.dragging
 
 export default filesSlice.reducer

@@ -43,10 +43,9 @@ export const tagsSlice = createSlice({
             if (!state.file_tags[file_id].tags.includes(tag_id)) {
                 state.file_tags[file_id].tags.push(tag_id);
             }
-            // const tag = state.tag_metadata[tag_id];
-            // const this_search = tag.aliases.join(" ") + " " + tag.name;
-            // const children_search = tag.children.map((child) => generate_search_string(state.tag_metadata[child])).join(" ");
-            // state.file_tags[file_id].search_string = this_search + " " + children_search;
+            const search_string = generate_search_string(state, tag_id);
+            console.log("File", file_id, "has search string", search_string)
+            state.file_tags[file_id].search_string = search_string;
         },
     },
 })
@@ -64,17 +63,29 @@ export const getTagFileID = (state: RootState) => state.tags.tag_file_id
 export const getTagFileMetadata = (state: RootState) => state.tags.tag_file_metadata
 export const getFileTags = (state: RootState) => state.tags.file_tags
 
-const getTagID = (state: RootState, id: TagID) => id
-export const getTagByID = createSelector(
-    [getTagMetadata, getTagID],
-    (tags: TagList, tagId: TagID) => tags[tagId]
-)
+export const getTagByID = (id: TagID) => (state: RootState) => state.tags.tag_metadata[id]
 
-const getFileTagsID = (state: RootState, id: FileID) => id
-export const getFileTagsByID = createSelector(
-    [getFileTags, getFileTagsID],
-    (file_tags: FileTagData, fileID: FileID) => file_tags[fileID]
-)
+export const getFileTagsByID = (id: FileID) => (state: RootState) => state.tags.file_tags[id]
+
+const generate_search_string = (state, tag_id: TagID) => {
+    if (tag_id === "") {
+        return "";
+    }
+    if (!state.tag_metadata[tag_id]) {
+        alert(`Tag with ID ${tag_id} does not exist`)
+        return "";
+    }
+    const tag: Tag = state.tag_metadata[tag_id];
+    let this_search: string = `${tag.name}`;
+    tag.aliases.forEach((alias) => {
+        this_search += ` ${alias}`;
+    });
+    const parent_search: string = generate_search_string(state, tag.parent);
+    if (parent_search === "") {
+        return this_search;
+    }
+    return `${this_search} ${parent_search}`;
+}
 
 
 

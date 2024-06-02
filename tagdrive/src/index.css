@@ -10,16 +10,9 @@
         rgba(9, 9, 132, 1) 53%,
         rgba(177, 4, 184, 1) 100%
     );
+    background-repeat: space;
     height: 100%;
     overflow: auto;
-}
-
-.form-btn button {
-    background-color: var(--nextui-default-800);
-}
-
-.card {
-    padding: 2em;
 }
 
 .tag-element {

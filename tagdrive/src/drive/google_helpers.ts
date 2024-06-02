@@ -1,7 +1,7 @@
 import google_modular from "./google_modular";
 import { DriveListResponse, FileListResponse, GoogleFileModifier, GoogleFile } from "./google_types";
 import { TagFile, TagList } from "../tag/tag_types";
-import { TAG_FILE_NAME } from "../tag/tag_display";
+import { TAG_FILE_NAME } from "../assets/constants";
 
 export const ALLOWED_MIME_TYPES = [
     "application/vnd.google-apps.document",
@@ -61,17 +61,53 @@ export async function get_drive_list(): Promise<DriveListResponse> {
     })
 }
 
-export async function get_file_list(drive_id: string): Promise<FileListResponse> {
-    return google_modular.files.list({
-        corpora: drive_id == "" ? "user" : "drive",
-        driveId: drive_id,
-        pageSize: 30, // Update to use pagination later
-        q: `trashed=false and name!='${TAG_FILE_NAME}' and ${ALLOWED_MIME_TYPES_STRING}`,
-        fields: "files(id, name, mimeType, webViewLink, hasThumbnail, thumbnailLink, iconLink, driveId)",
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: drive_id != "",
-        orderBy: "recency desc", // TODO: decide if we want to sort by recency or name
-    })
+export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
+    let response: FileListResponse;
+    let files: GoogleFile[] = [];
+    let pageToken: string | undefined = undefined;
+    while (true) {
+        // Get 1000 files from the selected drive
+        try {
+            response = await google_modular.files.list({
+                corpora: drive_id == "" ? "user" : "drive",
+                driveId: drive_id,
+                pageSize: 1000, // Update to use pagination later
+                q: `trashed=false and name!='${TAG_FILE_NAME}' and ${ALLOWED_MIME_TYPES_STRING}`,
+                fields: "files(id, name, mimeType, webViewLink, hasThumbnail, thumbnailLink, iconLink, driveId, parents), nextPageToken",
+                supportsAllDrives: true,
+                includeItemsFromAllDrives: drive_id != "",
+                orderBy: "recency desc", // TODO: decide if we want to sort by recency or name
+                pageToken: pageToken || "",
+            });
+        } catch (err) {
+            alert(err.message)
+            return [];
+        }
+        //console.log(response)
+        // Update the list of files
+        if (!files) {
+            files = response.files;
+        } else {
+            files.push(...response.files);
+        }
+        // If there is a next page token
+        if (response.nextPageToken) {
+            pageToken = response.nextPageToken;
+        } else {
+            break;
+        }
+    }
+    return files;
+    // return google_modular.files.list({
+    //     corpora: drive_id == "" ? "user" : "drive",
+    //     driveId: drive_id,
+    //     pageSize: 30, // Update to use pagination later
+    //     q: `trashed=false and name!='${TAG_FILE_NAME}' and ${ALLOWED_MIME_TYPES_STRING}`,
+    //     fields: "files(id, name, mimeType, webViewLink, hasThumbnail, thumbnailLink, iconLink, driveId)",
+    //     supportsAllDrives: true,
+    //     includeItemsFromAllDrives: drive_id != "",
+    //     orderBy: "recency desc", // TODO: decide if we want to sort by recency or name
+    // })
 }
 
 async function create_tag_file(drive_id: string): Promise<string> {
@@ -83,18 +119,21 @@ async function create_tag_file(drive_id: string): Promise<string> {
                 "name": "TagFile0",
                 "aliases": [],
                 "children": [],
+                "parent": "TagFile2",
             },
             "TagFile1":{
                 "color": "purple-800",
                 "name": "TagFile1",
-                "aliases": [],
+                "aliases": ["Haha funny tag"],
                 "children": [],
+                "parent": "",
             },
             "TagFile2":{
                 "color": "teal-700",
                 "name": "TagFile2",
-                "aliases": [],
-                "children": [],
+                "aliases": ["magical", "vacuum"],
+                "children": ["TagFile0"],
+                "parent": "",
             }
         },
         FILE_DATA: {

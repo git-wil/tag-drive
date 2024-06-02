@@ -22,9 +22,9 @@ import { FileCard, TagSearchBox } from "../tag/tag_display";
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { clearSelectedFiles, getFiles, getSelectedFiles, setFiles, setFilesLoaded } from "../drive/files_slice";
+import { clearSelectedFiles, getFiles, setFiles, setFilesLoaded } from "../drive/files_slice";
 import { setFileTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
-import { Sidebar } from "./sidebar";
+// import { Sidebar } from "./sidebar";
 import { TagFile } from "../tag/tag_types";
 
 let initialized = false;
