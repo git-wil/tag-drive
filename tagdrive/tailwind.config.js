@@ -28,6 +28,9 @@ export default {
   },
   darkMode: "class",
   plugins: [nextui({ defaultTheme: "dark" })],
-  safelist: [...tag_colors.map((color) => `bg-${color}`), ...tag_colors.map((color) => `text-${color}-contrast`)],
+  safelist: [
+    "ps-5", "ps-10", "ps-15", "ps-20", "ps-25", "ps-30", "ps-35", "ps-40", "ps-45", "ps-50",
+    ...tag_colors.map((color) => `bg-${color}`), ...tag_colors.map((color) => `text-${color}-contrast`)
+  ],
 }
 

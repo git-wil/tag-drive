@@ -6,7 +6,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 
 
 import { get_file_list, get_tag_file_data, get_tag_file_metadata } from "../drive/google_helpers";
-import { DraggableTagElementHandler, FileCardContainer, FileSearchBox, TagCard } from "../tag/tag_display";
+import { DraggableTagElementHandler, FileCardContainer, FileSearchBox, NewTagElement, TagCard } from "../tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
@@ -56,7 +56,7 @@ function EditorNew() {
     const dispatch = useAppDispatch();
     const visible_files = useAppSelector(getVisibleFiles);
     const queried_files = useAppSelector(getQueriedFiles);
-    // const tags = useAppSelector(getTags)
+    const tags = useAppSelector(getTagMetadata)
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
 
@@ -106,15 +106,21 @@ function EditorNew() {
                             <div
                             id="tag-panel"
                             dir="rtl"
-                            className="w-full h-full flex-1 overflow-auto bg-primary-100">
+                            className="w-full h-full flex-1 overflow-auto rounded-2xl bg-primary-700/15">
                                 <div
                                 dir="ltr"
-                                className="grid gap-2 p-3 grid-cols-1 bg-primary-100">
-                                    <DraggableTagElementHandler tag_id="TagFile0"/>
+                                className="grid gap-2 p-3 grid-cols-1">
+                                    
+                                    <NewTagElement/>
                                     {
-                                        // new Array(30).fill(0).map((_, i) => {
-                                        //     return <div className="col-span-1 p-2 h-[40px] w-full bg-primary-200 rounded-lg" key={i}>Test</div>
-                                        // })
+                                        Object.values(tags).filter((tag) => tag.parent === "").map((tag) => {
+                                            return (
+                                                <DraggableTagElementHandler
+                                                key={tag.name}
+                                                tag_id={tag.name}
+                                                />
+                                            );
+                                        })
                                     }
                                 </div>
                             </div>

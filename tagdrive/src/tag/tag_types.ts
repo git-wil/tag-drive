@@ -3,8 +3,8 @@ export type TagColor = string; // CSS valid color string, e.g. "#ff0000" or "red
 export type FileID = string; // Given from Google API
 
 export type Tag = {
-    color: TagColor;
     name: string;
+    color: TagColor;
     aliases: string[];
     children: TagID[];
     parent: TagID;

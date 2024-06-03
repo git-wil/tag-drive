@@ -1,5 +1,6 @@
 import "../editor/Editor.css";
 import {
+    Button,
     // Autocomplete,
     // AutocompleteItem,
     // Button,
@@ -14,9 +15,16 @@ import {
     // Selection,
     Skeleton,
     Spacer,
+    Tooltip,
+    Modal,
+    ModalContent,
+    ModalHeader,
+    ModalBody,
+    ModalFooter,
+    useDisclosure
 } from "@nextui-org/react";
 import { GoogleFile } from "../drive/google_types.js";
-import { TagID } from "./tag_types.js";
+import { Tag, TagID } from "./tag_types.js";
 import { addTagToFileID, getFileTags, getFileTagsByID, getTagByID, getTagMetadata } from "./tags_slice.js";
 import { useAppDispatch, useAppSelector } from "../store/hooks.js";
 import { appendSelectedFile, appendSelectedFilesBetween, clearSelectedFiles, getDraggedOver, getDragging, getFiles, getFilesLoaded, getQueriedFiles, getSelectedFiles, getVisibleFiles, isSelectedFile, removeSelectedFile, resetDraggedOver, resetDragging, setDraggedOver, setDragging, setQueriedFiles, setSelectedFiles, setVisibleFilesSafe, toggleSelectedFile } from "../drive/files_slice.js";
@@ -60,6 +68,7 @@ export function FileSearchBox() {
                     const fuse = new Fuse(files, {
                         keys: ["data"],
                         ignoreLocation: true,
+                        useExtendedSearch: true,
                         // includeScore: true,
                         getFn: (file: GoogleFile, path: string | string[]) => {
                             return file.name + (file_tags[file.id] || {search_string: ""}).search_string;
@@ -175,55 +184,81 @@ export function TagCard(props: {tag_ids: TagID[]}) {
 }
 
 
-
-export function DraggableTagElementHandler(props: {tag_id: TagID}) {
+export function DraggableTagElementHandler(props: {tag_id: TagID, depth?: number}) {
     const [open, setOpen] = useState(true);
     const [pressed, setPressed] = useState(false);
     const tag_id = props.tag_id;
     const tag = useAppSelector(getTagByID(tag_id));
+    const depth = props.depth || 0;
 
     return (
-        <motion.div
-            animate={{
-                scale: pressed ? 0.99 : 1
-            }}
-            className="flex flex-row gap-2 items-center rounded-md bg-primary-200 p-1.5"
-        >
-            <motion.svg
-                initial={{
-                    rotate: 90
-                }}
-                whileHover={{
-                    scale: 1.1,
-                }}
-                whileTap={{
-                    scale: 0.9,
-                }}
-                onTapStart = {
-                    () => setPressed(true)
-                }
+        <div className="gap-4">
+            <motion.div
                 animate={{
-                    rotate: open ? 90 : 0
+                    scale: pressed ? 0.99 : 1
                 }}
-                onClick={() => {
-                    setOpen(!open);
-                    setPressed(false);
-                }}
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="size-4 -me-1 active:outline-none focus:outline-none"
-                tabIndex={-1}
+                className={`flex flex-row gap-2 items-center rounded-md bg-primary-700/20 p-1.5`}
             >
-                <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-            </motion.svg>
-            <DraggableTagElement tag_id={props.tag_id}/>
-            {
-
+                {
+                    tag.children.length > 0
+                    ? 
+                    <motion.svg
+                        initial={{
+                            rotate: 90
+                        }}
+                        whileHover={{
+                            scale: 1.1,
+                        }}
+                        whileTap={{
+                            scale: 0.9,
+                        }}
+                        onTapStart = {
+                            () => setPressed(true)
+                        }
+                        animate={{
+                            rotate: open ? 90 : 0
+                        }}
+                        onClick={() => {
+                            setOpen(!open);
+                            setPressed(false);
+                        }}
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2.5}
+                        stroke="currentColor"
+                        className={"size-4 -me-0.5 active:outline-none focus:outline-none"}
+                        tabIndex={-1}
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </motion.svg>
+                    :
+                    <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" className="-me-0.5">
+                        <circle r={4.5} cx={8.25} cy={8.25} stroke="white" strokeWidth={1.5} fill="none" className="size-4"></circle>
+                    </svg>
+                }
+                <DraggableTagElement tag_id={props.tag_id}/>
+            </motion.div>
+            <motion.div
+                animate={{
+                    scaleY: open ? 1 : 0,
+                    opacity: open ? 1 : 0
+                }}
+                transition={{
+                    ease: "easeInOut",
+                    duration: 0.15,
+                }}
+                className="gap-2"
+            >
+                {
+                tag.children.map((child_id) => (
+                    <div key={child_id} className={`ps-${5 * (depth + 1)} pt-2`}>
+                        <DraggableTagElementHandler tag_id={child_id} key={child_id} depth={depth + 1}/>
+                    </div>
+                ))
             }
-        </motion.div>
+            </motion.div>
+        </div>
     )
 }
 
@@ -241,10 +276,13 @@ export function DraggableTagElement(props: {tag_id: TagID}) {
     return (
         <motion.div 
         draggable
+        dragMomentum={false}
+        dragSnapToOrigin
         whileTap={{
             scale: 0.95,
         }}
         onDragStart={() => {
+            console.log("Dragging tag", tag_id)
             dispatch(setDragging({type: "tag", id: tag_id}));
         }}
         onDrag={(e) => {
@@ -261,7 +299,7 @@ export function DraggableTagElement(props: {tag_id: TagID}) {
             dispatch(resetDraggedOver());
             dispatch(resetDragging());
         }}
-        className={`flex h-[30px] w-fit pt-1.5 pe-3 ps-1 bg-${tag.color} rounded-full cursor-move tag-element`}>
+        className={`flex h-[30px] w-fit z-25 pt-1.5 pe-3 ps-1 bg-${tag.color} rounded-full cursor-move tag-element`}>
             <div className="w-1">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
@@ -427,7 +465,10 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
     }
 
     return (
-      <button
+      <motion.button
+      whileTap={{
+            scale: 0.97
+      }}
         id={`file-card-${index}`}
         onDoubleClick={(e)=>{
             if (file === null) return;
@@ -466,7 +507,6 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
         }}
         className={"bg-zinc-900 rounded-2xl scroll-m-2 " +
             "text-foreground outline-none shadow-medium hover:bg-content2 " +
-            "transition-transform-background motion-reduce:transition-none active:scale-[0.97] " +
             (dragged_over_file_indices.includes(index) ? "ring-2 ring-secondary-500 " : 
             last_selected_file === index ? "ring-2 ring-primary-500 " : 
             is_selected ? "ring-2 ring-primary-300 " : ""
@@ -508,7 +548,9 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
                     isLoaded={file !== null}
                     className="rounded-b-lg"
                 >
-                    <h3 className="truncate w-full h-[30px] bg-zinc-700 rounded-b-md py-1 px-3 font-medium">{file_name}</h3>
+                    <Tooltip content={file_name} delay={250} className="w-[150px] bg-zinc-900/85 shadow-md">
+                        <h3 className="truncate w-full h-[30px] bg-zinc-700 rounded-b-md py-1 px-3 font-medium">{file_name}</h3>
+                    </Tooltip>
                 </Skeleton>
                 <Spacer y={3}/>
                 <Skeleton
@@ -518,10 +560,86 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
                     <TagCard tag_ids={file_tag_ids.tags}/>
                 </Skeleton>
             </div>
-      </button>  
+      </motion.button>  
     );
 }
 
+
+
+
+export function NewTagElement() {
+    const {isOpen, onOpen, onOpenChange} = useDisclosure();
+
+    return (
+        <div className="gap-4">
+            <Button
+                
+                fullWidth
+                className={`flex flex-row gap-2  rounded-md bg-primary-700/50 p-1.5`}
+                onClick={onOpen}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                    stroke="currentColor"
+                    className={"size-4 -me-0.5 active:outline-none focus:outline-none"}
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                <div className="h-[30px] text-base py-1 text-primary-900">New Tag</div>
+            </Button>
+            <TagModal isOpen={isOpen} onOpenChange={onOpenChange}/>
+        </div>
+    );
+}
+
+export function TagModal(props: {
+    isOpen: boolean,
+    onOpenChange: (open: boolean) => void,
+    name?: string, 
+    color?: string,
+    aliases?: string[],
+    children?: TagID[],
+    parent?: TagID,
+}) {
+    const isOpen = props.isOpen;
+    const onOpenChange = props.onOpenChange;
+    return (
+    <Modal
+        isOpen={isOpen} 
+        onOpenChange={onOpenChange}
+        backdrop="blur"
+        motionProps={{
+            initial: { opacity: 0, scale: 0.5 },
+            animate: { opacity: 1, scale: 1,},
+            exit: { opacity: 0, scale: 0.5 },
+            transition: { duration: 0.1, ease: "easeInOut", type: "spring", stiffness: 260, damping: 20}
+        }}
+    >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1"> {props.name ? "Modify Tag" : "Create New Tag"}</ModalHeader>
+              <ModalBody>
+                <div>Test body</div>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="danger" variant="flat" onPress={onClose}>
+                  Cancel
+                </Button>
+                <Button color="secondary" onPress={onClose}>
+                  {props.name ? "Save" : "Create"}
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+
+    </Modal>
+    )
+}
 
 
 // export function AddTagsCard() {
