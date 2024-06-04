@@ -25,13 +25,13 @@ import {
 } from "@nextui-org/react";
 import { GoogleFile } from "../drive/google_types.js";
 import { Tag, TagID } from "./tag_types.js";
-import { addTagToFileID, getFileTags, getFileTagsByID, getTagByID, getTagMetadata } from "./tags_slice.js";
+import { addTagToFileID, getFileTags, getFileTagsByID, getQueriedTags, getTagByID, getTagMetadata, setQueriedTags } from "./tags_slice.js";
 import { useAppDispatch, useAppSelector } from "../store/hooks.js";
-import { appendSelectedFile, appendSelectedFilesBetween, clearSelectedFiles, getDraggedOver, getDragging, getFiles, getFilesLoaded, getQueriedFiles, getSelectedFiles, getVisibleFiles, isSelectedFile, removeSelectedFile, resetDraggedOver, resetDragging, setDraggedOver, setDragging, setQueriedFiles, setSelectedFiles, setVisibleFilesSafe, toggleSelectedFile } from "../drive/files_slice.js";
+import { appendSelectedFile, appendSelectedFilesBetween, clearSelectedFiles, getDraggedOver, getDragging, getFiles, getFilesLoaded, getQueriedFiles, getSelectedFiles, getVisibleFiles, isSelectedFile, removeDraggedOver, removeSelectedFile, resetDraggedOver, resetDragging, setDraggedOver, setDragging, setQueriedFiles, setSelectedFiles, setVisibleFilesSafe, toggleSelectedFile } from "../drive/files_slice.js";
 import { useState } from "react";
 import { getTypedTags, getValue, setTypedTags, setValue } from "./tag_search_slice.js";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, animate, motion } from "framer-motion";
 
 import Fuse from "fuse.js";
 import { getCurrentBreakpoint } from "../editor/get_screen_break.js";
@@ -192,73 +192,73 @@ export function DraggableTagElementHandler(props: {tag_id: TagID, depth?: number
     const depth = props.depth || 0;
 
     return (
-        <div className="gap-4">
-            <motion.div
-                animate={{
-                    scale: pressed ? 0.99 : 1
-                }}
-                className={`flex flex-row gap-2 items-center rounded-md bg-primary-700/20 p-1.5`}
-            >
-                {
-                    tag.children.length > 0
-                    ? 
-                    <motion.svg
-                        initial={{
-                            rotate: 90
-                        }}
-                        whileHover={{
-                            scale: 1.1,
-                        }}
-                        whileTap={{
-                            scale: 0.9,
-                        }}
-                        onTapStart = {
-                            () => setPressed(true)
-                        }
-                        animate={{
-                            rotate: open ? 90 : 0
-                        }}
-                        onClick={() => {
-                            setOpen(!open);
-                            setPressed(false);
-                        }}
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2.5}
-                        stroke="currentColor"
-                        className={"size-4 -me-0.5 active:outline-none focus:outline-none"}
-                        tabIndex={-1}
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                    </motion.svg>
-                    :
-                    <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" className="-me-0.5">
-                        <circle r={4.5} cx={8.25} cy={8.25} stroke="white" strokeWidth={1.5} fill="none" className="size-4"></circle>
-                    </svg>
-                }
-                <DraggableTagElement tag_id={props.tag_id}/>
-            </motion.div>
-            <motion.div
-                animate={{
-                    scaleY: open ? 1 : 0,
-                    opacity: open ? 1 : 0
-                }}
-                transition={{
-                    ease: "easeInOut",
-                    duration: 0.15,
-                }}
-                className="gap-2"
-            >
-                {
-                tag.children.map((child_id) => (
-                    <div key={child_id} className={`ps-${5 * (depth + 1)} pt-2`}>
-                        <DraggableTagElementHandler tag_id={child_id} key={child_id} depth={depth + 1}/>
-                    </div>
-                ))
+        <div className="gap-4 h-full">
+        <motion.div
+            animate={{
+                scale: pressed ? 0.99 : 1
+            }}
+            className={`flex flex-row gap-2 items-center rounded-md bg-primary-700/20 p-1.5`}
+        >
+            {
+                (tag && tag.children.length > 0)
+                ? 
+                <motion.svg
+                    initial={{
+                        rotate: 90
+                    }}
+                    whileHover={{
+                        scale: 1.1,
+                    }}
+                    whileTap={{
+                        scale: 0.9,
+                    }}
+                    onTapStart = {
+                        () => setPressed(true)
+                    }
+                    animate={{
+                        rotate: open ? 90 : 0
+                    }}
+                    onClick={() => {
+                        setOpen(!open);
+                        setPressed(false);
+                    }}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                    stroke="currentColor"
+                    className={"size-4 -me-0.5 active:outline-none focus:outline-none"}
+                    tabIndex={-1}
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </motion.svg>
+                :
+                <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" className="-me-0.5">
+                    <circle r={4.5} cx={8.25} cy={8.25} stroke="white" strokeWidth={1.5} fill="none" className="size-4"></circle>
+                </svg>
             }
-            </motion.div>
-        </div>
+            <DraggableTagElement tag_id={props.tag_id}/>
+        </motion.div>
+        <motion.div
+            animate={{
+                scaleY: open ? 1 : 0,
+                opacity: open ? 1 : 0
+            }}
+            transition={{
+                ease: "easeInOut",
+                duration: 0.15,
+            }}
+            className="gap-2"
+        >
+            {
+            tag && tag.children.map((child_id) => (
+                <div key={child_id} className={`ps-${5 * (depth + 1)} pt-2`}>
+                    <DraggableTagElementHandler tag_id={child_id} key={child_id} depth={depth + 1}/>
+                </div>
+            ))
+        }
+        </motion.div>
+    </div>
     )
 }
 
@@ -270,49 +270,56 @@ export function DraggableTagElement(props: {tag_id: TagID}) {
     const files_loaded = useAppSelector(getFilesLoaded);
     const dragged_over = useAppSelector(getDraggedOver);
     // const selected_files = useAppSelector(getSelectedFiles);
-    if (!files_loaded) {
-        return <div></div>;
-    }
     return (
-        <motion.div 
-        draggable
-        dragMomentum={false}
-        dragSnapToOrigin
-        whileTap={{
-            scale: 0.95,
-        }}
-        onDragStart={() => {
-            console.log("Dragging tag", tag_id)
-            dispatch(setDragging({type: "tag", id: tag_id}));
-        }}
-        onDrag={(e) => {
-            e.preventDefault();
-        }}
-        onDragEnd={() => {
-            dragged_over.forEach((file_index: number) => {
-                dispatch(addTagToFileID({tag_id: tag_id, file_id: files[file_index].id}))
-            });
-            // TODO: Consider clearing selected files after drag?
-            // if (dragged_over == selected_files) {
-            //     dispatch(clearSelectedFiles());
-            // }
-            dispatch(resetDraggedOver());
-            dispatch(resetDragging());
-        }}
-        className={`flex h-[30px] w-fit z-25 pt-1.5 pe-3 ps-1 bg-${tag.color} rounded-full cursor-move tag-element`}>
-            <div className="w-1">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
-                </svg>
-            </div>
-            <div className="w-1 me-3">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
-                </svg>
-            </div>
-            
-            <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
-        </motion.div>
+        <Skeleton
+            isLoaded={tag !== undefined}
+            className="h-full rounded-full w-fit"
+            classNames={{
+                base: "bg-primary-700/50 before:via-primary-700/60"
+            }}
+        >
+            {!tag
+            ? <div className="h-[30px] rounded-full w-[100px]"></div>
+            : <motion.div 
+            draggable
+            dragMomentum={false}
+            dragSnapToOrigin
+            whileTap={{
+                scale: 0.95,
+            }}
+            onDragStart={() => {
+                console.log("Dragging tag", tag_id)
+                dispatch(setDragging({type: "tag", id: tag_id}));
+            }}
+            onDrag={(e) => {
+                e.preventDefault();
+            }}
+            onDragEnd={() => {
+                dragged_over.forEach((file_index: number) => {
+                    dispatch(addTagToFileID({tag_id: tag_id, file_id: files[file_index].id}))
+                });
+                // TODO: Consider clearing selected files after drag?
+                // if (dragged_over == selected_files) {
+                //     dispatch(clearSelectedFiles());
+                // }
+                dispatch(resetDraggedOver());
+                dispatch(resetDragging());
+            }}
+            className={`flex h-[30px] w-fit z-25 pt-1.5 pe-3 ps-1 bg-${tag.color} rounded-full cursor-move tag-element`}>
+                <div className="w-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                    </svg>
+                </div>
+                <div className="w-1 me-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                    </svg>
+                </div>
+                
+                <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
+            </motion.div>}
+        </Skeleton>
     );
 }
 
@@ -449,7 +456,7 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
     // TODO: Show in top right corner?
     // const file_type = file?.mimeType;
     const dragged_over_file_indices = useAppSelector(getDraggedOver);
-    const dragging_tag_index = useAppSelector(getDragging);
+    const dragging_metadata = useAppSelector(getDragging);
     const selected_files = useAppSelector(getSelectedFiles);
     const is_selected = useAppSelector(isSelectedFile(index));
 
@@ -466,9 +473,9 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
 
     return (
       <motion.button
-      whileTap={{
-            scale: 0.97
-      }}
+        whileTap={{
+                scale: 0.97
+        }}
         id={`file-card-${index}`}
         onDoubleClick={(e)=>{
             if (file === null) return;
@@ -491,15 +498,15 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
             e.stopPropagation();
         }}
         onDragEnter={(e) => {
+            console.log("Drag enter", index)
             e.preventDefault();
-            if (dragging_tag_index.type != "tag") {
-                return;
-            }
-            if (selected_files.length > 0 && selected_files.includes(index)) {
-                // Add tag to all selected files
-                dispatch(setDraggedOver(selected_files));
-            } else {
-                dispatch(setDraggedOver([index]));
+            if (dragging_metadata.type == "tag") {
+                if (selected_files.length > 0 && selected_files.includes(index)) {
+                    // Add tag to all selected files
+                    dispatch(setDraggedOver(selected_files));
+                } else {
+                    dispatch(setDraggedOver([index]));
+                }
             }
         }}
         onDragOver={(e) => {
@@ -565,17 +572,118 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
 }
 
 
+export function TagPanel() {
+    const queried_tags = Object.values(useAppSelector(getQueriedTags));
+    const dragging_metadata = useAppSelector(getDragging);
+    console.log("Drag metadata", dragging_metadata)
+    return (
+        <div
+            className="relative w-full h-full rounded-2xl"
+        >
+            <AnimatePresence>
+            {
+                (
+                    <motion.div
+                    animate={{  opacity: dragging_metadata.type === "tag" ? 1 : 0 }}
+                    transition={{
+                        type: "easeInOut",
+                        duration: 0.2
+                    }}
+                    key="tag-drag-indicators"
+                    className="absolute m-auto left-0 right-0 top-0 bottom-0 w-[200px] h-[60px] rounded-lg text-base text-primary-900/50"
+                    >Drop tag here to cancel</motion.div>
+                )
+            }
+            <motion.div
+                id="tag-panel"
+                key="tag-panel"
+                dir="rtl"
+                className={"w-full h-full flex-1 overflow-auto rounded-2xl bg-primary-700/15"}
+                style={{
+                    // filter: dragging_metadata.type === "tag" ? "blur(5px)" : "",
+                    transition: "filter 0.2s ease-in-out"
+                }}
+                transition={{
+                    duration: 0.2,
+                    ease: "easeInOut"
+                }}
+            >
+                <div
+                id="tag-panel-inner"
+                dir="ltr"
+                className="grid gap-2 p-3 grid-cols-1">
+                    
+                    <NewTagElement/>
+                    {
+                        queried_tags.filter((tag) => tag === null || tag.parent === "").map((tag, index) => {
+                            return (
+                                <DraggableTagElementHandler
+                                key={index}
+                                tag_id={tag !== null ? tag.name : ""}
+                                />
+                            );
+                        })
+                    }
+                </div>
+            </motion.div>
+            </AnimatePresence>
+        </div>
+    )
+}
+
+
+export function TagSearchBox() {
+    const dispatch = useAppDispatch();
+    const tags = Object.values(useAppSelector(getTagMetadata));
+    return (
+        <Input
+            variant="bordered"
+            placeholder="Filter tags..."
+            isClearable
+            labelPlacement="inside"
+            classNames={{
+                base: "h-full",
+                mainWrapper: "h-full",
+                inputWrapper: "h-[50px] caret-secondary-400 group-data-[focus=true]:border-secondary-600 border-secondary-800/50 data-[hover=true]:border-secondary-600/50",
+                input: "text-md placeholder:text-primary-800/60"
+            }}
+            startContent={
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="hsl(var(--nextui-primary-900))" className="size-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Zm3.75 11.625a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
+            }
+            onValueChange={
+                (value) => {
+                    if (value === "") {
+                        dispatch(setQueriedTags(tags));
+                        return;
+                    }
+                    const fuse = new Fuse(tags, {
+                        keys: ["name", "aliases"],
+                        ignoreLocation: true,
+                        useExtendedSearch: true,
+                        // includeScore: true,
+                        threshold: 0.5,
+                    }).search(value);
+                    dispatch(setQueriedTags(fuse.map((result) => result.item)));
+                    document.getElementById("tag-panel")?.scrollTo({top: 0, behavior: "instant"});
+                }
+            }   
+        />
+    );
+
+}
 
 
 export function NewTagElement() {
     const {isOpen, onOpen, onOpenChange} = useDisclosure();
 
     return (
-        <div className="gap-4">
+        <div className="gap-4 mb-1.5">
             <Button
                 
                 fullWidth
-                className={`flex flex-row gap-2  rounded-md bg-primary-700/50 p-1.5`}
+                className={`flex flex-row gap-2 rounded-md bg-primary-700/50 p-1.5`}
                 onClick={onOpen}
             >
                 <svg

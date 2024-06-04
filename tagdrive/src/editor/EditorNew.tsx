@@ -6,12 +6,12 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 
 
 import { get_file_list, get_tag_file_data, get_tag_file_metadata } from "../drive/google_helpers";
-import { DraggableTagElementHandler, FileCardContainer, FileSearchBox, NewTagElement, TagCard } from "../tag/tag_display";
+import { FileCardContainer, FileSearchBox, TagPanel } from "../tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
-import { clearSelectedFiles, getQueriedFiles, getVisibleFiles, setFiles, setFilesLoaded, setQueriedFiles, setVisibleFiles } from "../drive/files_slice";
-import { getTagMetadata, setFileTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
+import { clearSelectedFiles, getDragging, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setQueriedFiles, setVisibleFiles } from "../drive/files_slice";
+import { getTagMetadata, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
 import { TagFile } from "../tag/tag_types";
 
 
@@ -23,32 +23,36 @@ const drive_id = ""; // "0AH0hueN2V6xzUk9PVA";
 
 /*
 TODO Editor:
-- figure out tags lol ✔
-    - i guess just modify tag file as a google doc ✔
-- list files from only specific drive, not just my drive ✔ (not working)
-- goodbye old sidebar
-- hello new sidebar
-    - tag panel (list of all tags, children tags are indented under parents like a tree)
+✔ figure out tags lol 
+    ✔ i guess just modify tag file as a google doc
+✔ list files from only specific drive, not just my drive
+✔ goodbye old sidebar for files
+✔ hello new sidebar for tags
+    ✔ tag panel (list of all tags, children tags are indented under parents like a tree)
     - tools bar (bomb to delete all tags, dynamite to delete one color (whatever tag is hovered))
     - tag search bar (fuse, shows all tags that match search)
-    - plus button to open new tag modal
+    ✔ plus button to open new tag modal
 - modal for new tag creation
     - name
     - color
-    - parent tag (optional)
     - aliases (optional)
+    - parent tag (optional, otherwise "" for root)
+    - children tags (optional)
+✔ make searching work
+    - Think about exact match/parentheses matching with & and |?
+✔ double click to open file with weblink
+✔ adaptive rendering of ~30 files at a time as you scroll
+- consider what to show if a file has no tags
+- buttons at top left (create new file? sign out/switch drive?)
+- export tag metadata (no files) and import (between drives)
+½ make keyboard shortcuts for everything
 
-- sidebar (single click) 
+
+Old:
+✖ sidebar (single click) 
     - show thumbnail, full name, tags ✔
     - add tags
     - create new tag
-- make searching work
-- double click to open file with weblink ✔
-- adaptive rendering of ~30 files at a time as you scroll
-- consider what to show if a file has no tags
-- buttons at top right (create new file? sign out/switch drive?)
-- export tag metadata (no files) and import (between drives)
-- make keyboard shortcuts for everything
 */
 
 
@@ -56,7 +60,6 @@ function EditorNew() {
     const dispatch = useAppDispatch();
     const visible_files = useAppSelector(getVisibleFiles);
     const queried_files = useAppSelector(getQueriedFiles);
-    const tags = useAppSelector(getTagMetadata)
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
 
@@ -73,6 +76,7 @@ function EditorNew() {
                     console.log("running", typeof files, files);
                     dispatch(setFiles(files));
                     dispatch(setQueriedFiles(files));
+                    dispatch(setQueriedTags(Object.values(data.TAG_DATA)));
                     dispatch(setFilesLoaded(true));
                 });
             });
@@ -96,34 +100,19 @@ function EditorNew() {
                     <div className="grid grid-rows-6 grid-cols-1 sm:grid-rows-none sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-4 2xl:grid-cols-5 gap-2 items-center justify-center h-full w-full">
                         <div
                         id="control-panel"
-                        className="flex flex-col overflow-auto gap-2 row-span-2 w-full order-last sm:order-first sm:row-auto sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-1 2xl:grid-cols-1 h-full">
+                        onDragEnter={(e) => {
+                            // Reset dragged over items when entering the control panel
+                            e.preventDefault();
+                            dispatch(resetDraggedOver());
+                        }}
+                        className="relative flex flex-col overflow-auto gap-2 row-span-2 w-full order-last sm:order-first sm:row-auto sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-1 2xl:grid-cols-1 h-full">
                             <div
                             id="tag-search-bar"
                             className="w-full h-[80px] flex-none bg-primary-200 rounded-lg"></div>
                             <div
                             id="tag-search-bar"
                             className="w-full h-[60px] flex-none bg-primary-300 rounded-lg"></div>
-                            <div
-                            id="tag-panel"
-                            dir="rtl"
-                            className="w-full h-full flex-1 overflow-auto rounded-2xl bg-primary-700/15">
-                                <div
-                                dir="ltr"
-                                className="grid gap-2 p-3 grid-cols-1">
-                                    
-                                    <NewTagElement/>
-                                    {
-                                        Object.values(tags).filter((tag) => tag.parent === "").map((tag) => {
-                                            return (
-                                                <DraggableTagElementHandler
-                                                key={tag.name}
-                                                tag_id={tag.name}
-                                                />
-                                            );
-                                        })
-                                    }
-                                </div>
-                            </div>
+                            <TagPanel/>
                             <div
                             id="tag-end-bar"
                             className="w-full h-[80px] flex-none bg-primary-200"></div>

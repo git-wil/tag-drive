@@ -85,6 +85,9 @@ export const filesSlice = createSlice({
     resetDraggedOver: (state) => {
       state.dragged_over = []
     },
+    removeDraggedOver: (state, action) => {
+      state.dragged_over = state.dragged_over.filter((index) => index !== action.payload)
+    },
     setDragging: (state, action) => {
       state.dragging = action.payload
     },
@@ -107,6 +110,7 @@ export const {
   toggleSelectedFile,
   setDraggedOver,
   resetDraggedOver,
+  removeDraggedOver,
   setDragging,
   resetDragging,
 } = filesSlice.actions

@@ -1,11 +1,13 @@
-import { createSelector, createSlice } from '@reduxjs/toolkit'
+import { createSlice } from '@reduxjs/toolkit'
 import { RootState } from '../store/store.js';
 import { tag_colors } from "../../tailwind.config.js";
-import { FileID, FileTagData, Tag, TagFile, TagID, TagList } from "./tag_types.js";
+import { FileID, FileTagData, Tag, TagID, TagList } from "./tag_types.js";
 import { GoogleFile } from '../drive/google_types.js';
 
 
 const allowed_colors = tag_colors;
+
+const initial_tags: Tag[] = Array(5).fill(null as Tag | null)
 
 
 export const tagsSlice = createSlice({
@@ -15,7 +17,7 @@ export const tagsSlice = createSlice({
         tag_file_id: "",
         tag_file_metadata: {} as GoogleFile,
         file_tags: {} as FileTagData,
-        typed_tags: [] as TagID[],
+        queried_tags: initial_tags,
     },
     reducers: {
         setTagMetadata: (state, action) => {
@@ -47,6 +49,9 @@ export const tagsSlice = createSlice({
             console.log("File", file_id, "has search string", search_string)
             state.file_tags[file_id].search_string = search_string;
         },
+        setQueriedTags: (state, action) => {
+            state.queried_tags = action.payload;
+        },
     },
 })
 
@@ -56,12 +61,14 @@ export const {
     setTagFileMetaData,
     setFileTags,
     addTagToFileID,
+    setQueriedTags,
 } = tagsSlice.actions
 
 export const getTagMetadata = (state: RootState) => state.tags.tag_metadata
 export const getTagFileID = (state: RootState) => state.tags.tag_file_id
 export const getTagFileMetadata = (state: RootState) => state.tags.tag_file_metadata
 export const getFileTags = (state: RootState) => state.tags.file_tags
+export const getQueriedTags = (state: RootState) => state.tags.queried_tags
 
 export const getTagByID = (id: TagID) => (state: RootState) => state.tags.tag_metadata[id]
 
