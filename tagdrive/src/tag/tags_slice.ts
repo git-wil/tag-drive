@@ -1,11 +1,8 @@
 import { createSlice } from '@reduxjs/toolkit'
 import { RootState } from '../store/store.js';
-import { tag_colors } from "../../tailwind.config.js";
 import { FileID, FileTagData, Tag, TagID, TagList } from "./tag_types.js";
 import { GoogleFile } from '../drive/google_types.js';
 
-
-const allowed_colors = tag_colors;
 
 const initial_tags: Tag[] = Array(5).fill(null as Tag | null)
 

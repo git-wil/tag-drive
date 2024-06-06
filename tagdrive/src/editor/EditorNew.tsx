@@ -60,6 +60,7 @@ function EditorNew() {
     const dispatch = useAppDispatch();
     const visible_files = useAppSelector(getVisibleFiles);
     const queried_files = useAppSelector(getQueriedFiles);
+    const dragging = useAppSelector(getDragging);
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
 
@@ -101,9 +102,11 @@ function EditorNew() {
                         <div
                         id="control-panel"
                         onDragEnter={(e) => {
-                            // Reset dragged over items when entering the control panel
-                            e.preventDefault();
-                            dispatch(resetDraggedOver());
+                            // Reset dragged over items when dragged into the control panel
+                            if (dragging.type == "tag") {
+                                e.preventDefault();
+                                dispatch(resetDraggedOver());
+                            }
                         }}
                         className="relative flex flex-col overflow-auto gap-2 row-span-2 w-full order-last sm:order-first sm:row-auto sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-1 2xl:grid-cols-1 h-full">
                             <div

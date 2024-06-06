@@ -21,7 +21,9 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
-    useDisclosure
+    useDisclosure,
+    Select,
+    SelectItem
 } from "@nextui-org/react";
 import { GoogleFile } from "../drive/google_types.js";
 import { Tag, TagID } from "./tag_types.js";
@@ -37,6 +39,8 @@ import Fuse from "fuse.js";
 import { getCurrentBreakpoint } from "../editor/get_screen_break.js";
 import { file_columns } from "../assets/constants.js";
 import { useHotkeys } from "react-hotkeys-hook";
+
+import { TAG_COLORS } from "../assets/constants.js";
 
 export function FileSearchBox() {
     const dispatch = useAppDispatch();
@@ -176,7 +180,7 @@ export function TagCard(props: {tag_ids: TagID[]}) {
             className="flex-row flex-wrap overflow-auto border-none bg-zinc-700 h-[90px] w-full rounded-md p-2 gap-2">
             {
                 tag_ids.map((tag_id) => (
-                    <TagElement tag_id={tag_id} key={tag_id}/>
+                    <DraggableTagElement tag_id={tag_id} dragging_type="file" key={tag_id}/>
                 ))
             }
         </Card>
@@ -262,18 +266,18 @@ export function DraggableTagElementHandler(props: {tag_id: TagID, depth?: number
     )
 }
 
-export function DraggableTagElement(props: {tag_id: TagID}) {
+export function DraggableTagElement(props: {tag_id: TagID, dragging_type?: "tag" | "file"}) {
+    const dragging_type = props.dragging_type || "tag";
     const dispatch = useAppDispatch();
     const tag_id = props.tag_id;
     const tag = useAppSelector(getTagByID(tag_id));
     const files = useAppSelector(getFiles);
-    const files_loaded = useAppSelector(getFilesLoaded);
     const dragged_over = useAppSelector(getDraggedOver);
     // const selected_files = useAppSelector(getSelectedFiles);
     return (
         <Skeleton
             isLoaded={tag !== undefined}
-            className="h-full rounded-full w-fit"
+            className="h-fit rounded-full w-fit"
             classNames={{
                 base: "bg-primary-700/50 before:via-primary-700/60"
             }}
@@ -287,9 +291,20 @@ export function DraggableTagElement(props: {tag_id: TagID}) {
             whileTap={{
                 scale: 0.95,
             }}
+            {
+            ...(dragging_type == "file" ? {initial: { scale: 0 },
+                animate: { scale: 1},
+                transition: {
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 20,
+                    
+                    duration: 0.1,
+                }} : {})
+            }
             onDragStart={() => {
                 console.log("Dragging tag", tag_id)
-                dispatch(setDragging({type: "tag", id: tag_id}));
+                dispatch(setDragging({type: dragging_type, id: tag_id}));
             }}
             onDrag={(e) => {
                 e.preventDefault();
@@ -305,8 +320,8 @@ export function DraggableTagElement(props: {tag_id: TagID}) {
                 dispatch(resetDraggedOver());
                 dispatch(resetDragging());
             }}
-            className={`flex h-[30px] w-fit z-25 pt-1.5 pe-3 ps-1 bg-${tag.color} rounded-full cursor-move tag-element`}>
-                <div className="w-1">
+            className={`flex h-[30px] w-fit z-25 px-3 py-1.5 bg-${tag.color} rounded-full cursor-move tag-element`}>
+                {/* <div className="w-1">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                     </svg>
@@ -315,7 +330,7 @@ export function DraggableTagElement(props: {tag_id: TagID}) {
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                     </svg>
-                </div>
+                </div> */}
                 
                 <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
             </motion.div>}
@@ -471,10 +486,11 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
         console.log(file?.parents)
     }
 
+
     return (
-      <motion.button
+      <motion.div
         whileTap={{
-                scale: 0.97
+            scale: dragging_metadata.type != "file" ? 0.97 : 1,
         }}
         id={`file-card-${index}`}
         onDoubleClick={(e)=>{
@@ -500,6 +516,7 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
         onDragEnter={(e) => {
             console.log("Drag enter", index)
             e.preventDefault();
+            e.stopPropagation();
             if (dragging_metadata.type == "tag") {
                 if (selected_files.length > 0 && selected_files.includes(index)) {
                     // Add tag to all selected files
@@ -518,9 +535,7 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
             last_selected_file === index ? "ring-2 ring-primary-500 " : 
             is_selected ? "ring-2 ring-primary-300 " : ""
             )
-        }
-        type="button"
-        role="button">
+        }>
     
             <div className="relative w-full h-full items-center justify-center p-2">
                 {file !== null ?
@@ -555,9 +570,9 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
                     isLoaded={file !== null}
                     className="rounded-b-lg"
                 >
-                    <Tooltip content={file_name} delay={250} className="w-[150px] bg-zinc-900/85 shadow-md">
+                    {file !== null ? <Tooltip content={file_name} delay={250} className="w-[150px] bg-zinc-900/85 shadow-md">
                         <h3 className="truncate w-full h-[30px] bg-zinc-700 rounded-b-md py-1 px-3 font-medium">{file_name}</h3>
-                    </Tooltip>
+                    </Tooltip> : <div></div>}
                 </Skeleton>
                 <Spacer y={3}/>
                 <Skeleton
@@ -567,7 +582,7 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
                     <TagCard tag_ids={file_tag_ids.tags}/>
                 </Skeleton>
             </div>
-      </motion.button>  
+      </motion.div>  
     );
 }
 
@@ -581,9 +596,7 @@ export function TagPanel() {
             className="relative w-full h-full rounded-2xl"
         >
             <AnimatePresence>
-            {
-                (
-                    <motion.div
+                <motion.div
                     animate={{  opacity: dragging_metadata.type === "tag" ? 1 : 0 }}
                     transition={{
                         type: "easeInOut",
@@ -591,41 +604,47 @@ export function TagPanel() {
                     }}
                     key="tag-drag-indicators"
                     className="absolute m-auto left-0 right-0 top-0 bottom-0 w-[200px] h-[60px] rounded-lg text-base text-primary-900/50"
-                    >Drop tag here to cancel</motion.div>
-                )
-            }
-            <motion.div
-                id="tag-panel"
-                key="tag-panel"
-                dir="rtl"
-                className={"w-full h-full flex-1 overflow-auto rounded-2xl bg-primary-700/15"}
-                style={{
-                    // filter: dragging_metadata.type === "tag" ? "blur(5px)" : "",
-                    transition: "filter 0.2s ease-in-out"
-                }}
-                transition={{
-                    duration: 0.2,
-                    ease: "easeInOut"
-                }}
-            >
-                <div
-                id="tag-panel-inner"
-                dir="ltr"
-                className="grid gap-2 p-3 grid-cols-1">
-                    
-                    <NewTagElement/>
-                    {
-                        queried_tags.filter((tag) => tag === null || tag.parent === "").map((tag, index) => {
-                            return (
-                                <DraggableTagElementHandler
-                                key={index}
-                                tag_id={tag !== null ? tag.name : ""}
-                                />
-                            );
-                        })
-                    }
-                </div>
-            </motion.div>
+                >
+                    {dragging_metadata.type === "tag" ? "Drop tag here to cancel" : "Drop tag here to remove"}
+                </motion.div>
+                <motion.div
+                    id="tag-panel"
+                    key="tag-panel"
+                    dir="rtl"
+                    onDragOver={(e) => {
+                        if (dragging_metadata.type === "file") {
+                            console.log("Drag over tag panel") 
+                            e.preventDefault();
+                        }
+                    }}
+                    className={"w-full h-full flex-1 overflow-auto rounded-2xl bg-primary-700/15"}
+                    style={{
+                        filter: dragging_metadata.type === "tag" ? "blur(5px)" : "",
+                        transition: "filter 0.2s ease-in-out"
+                    }}
+                    transition={{
+                        duration: 0.2,
+                        ease: "easeInOut"
+                    }}
+                >
+                    <div
+                    id="tag-panel-inner"
+                    dir="ltr"
+                    className="grid gap-2 p-3 grid-cols-1">
+                        
+                        <NewTagElement/>
+                        {
+                            queried_tags.filter((tag) => tag === null || tag.parent === "").map((tag, index) => {
+                                return (
+                                    <DraggableTagElementHandler
+                                    key={index}
+                                    tag_id={tag !== null ? tag.name : ""}
+                                    />
+                                );
+                            })
+                        }
+                    </div>
+                </motion.div>
             </AnimatePresence>
         </div>
     )
@@ -714,6 +733,7 @@ export function TagModal(props: {
 }) {
     const isOpen = props.isOpen;
     const onOpenChange = props.onOpenChange;
+    const tags = useAppSelector(getTagMetadata);
     return (
     <Modal
         isOpen={isOpen} 
@@ -725,13 +745,58 @@ export function TagModal(props: {
             exit: { opacity: 0, scale: 0.5 },
             transition: { duration: 0.1, ease: "easeInOut", type: "spring", stiffness: 260, damping: 20}
         }}
+        classNames={{
+            body: "",
+        }}
     >
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="flex flex-col gap-1"> {props.name ? "Modify Tag" : "Create New Tag"}</ModalHeader>
+              <ModalHeader className="flex flex-col gap-2"> {props.name ? "Modify Tag" : "Create New Tag"}</ModalHeader>
               <ModalBody>
-                <div>Test body</div>
+                <Input
+                    variant="bordered"
+                    label="Tag Name"
+                    placeholder="Enter a unique tag name..."
+                    defaultValue={props.name}
+                    validate={(value) => {
+                        if (value === "") {
+                            return "Tag name cannot be empty";
+                        } else if (Object.keys(tags).includes(value)) {
+                            return "Tag name already exists";
+                        }
+                        return "";
+                    }}
+                ></Input>
+                <Select
+                    variant="bordered"
+                    label="Tag Color"
+                    placeholder="Select a color..."
+                    renderValue={(colors) => {
+                        return colors.map((color_data) => {
+                            // @ts-expect-error - This is a valid check, the color data is always the name of the color tag
+                            const color: string = color_data.key;
+                            const upper_color_name = color_data.textValue;
+                            return (
+                                <div key={color_data.key} className="flex gap-1.5 items-center">
+                                    <div className={`w-4 h-4 rounded-full bg-${color}`}></div>
+                                    <div className="text-sm">{upper_color_name}</div>
+                                </div>
+                        )});
+                      }}
+                >
+                    {TAG_COLORS.map((color) => {
+                        const color_name = color.split("-")[0];
+                        const upper_color_name = color_name.charAt(0).toUpperCase() + color_name.slice(1);
+                        return (
+                            <SelectItem key={color} textValue={upper_color_name}>
+                                <div className="flex gap-2 items-center">
+                                    <div className={`w-5 h-5 rounded-full bg-${color}`}></div>
+                                    <div className="text-base">{upper_color_name}</div>
+                                </div>
+                            </SelectItem>
+                    )})}
+                </Select>
               </ModalBody>
               <ModalFooter>
                 <Button color="danger" variant="flat" onPress={onClose}>
