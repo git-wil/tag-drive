@@ -151,7 +151,7 @@ export function FileSearchBox() {
 
 // }
 
-function TagElement(props: {tag_id: TagID}) {
+function PlainTagElement(props: {tag_id: TagID}) {
     const tag_id = props.tag_id;
     const tag = useAppSelector(getTagByID(tag_id));
     const files_loaded = useAppSelector(getFilesLoaded);
@@ -159,17 +159,21 @@ function TagElement(props: {tag_id: TagID}) {
         return <div></div>;
     }
     return (
-        <motion.div 
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{
-            type: "spring",
-            stiffness: 260,
-            damping: 20
-        }}
+        // <motion.div 
+        // initial={{ scale: 0 }}
+        // animate={{ scale: 1 }}
+        // transition={{
+        //     type: "spring",
+        //     stiffness: 260,
+        //     damping: 20
+        // }}
+        // className={`h-[30px] w-fit pt-1.5 p-2 px-3 bg-${tag.color} rounded-full`}>
+        //     <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
+        // </motion.div>
+        <div
         className={`h-[30px] w-fit pt-1.5 p-2 px-3 bg-${tag.color} rounded-full`}>
-            <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
-        </motion.div>
+            <h6 className="text-xs h-fit drop-shadow text-default-700">{tag.name}</h6>
+        </div>
     );
 }
 
@@ -734,10 +738,45 @@ export function TagModal(props: {
     const isOpen = props.isOpen;
     const onOpenChange = props.onOpenChange;
     const tags = useAppSelector(getTagMetadata);
+    const [newTagData, setNewTagData] = useState({
+        name: props.name || "",
+        color: props.color || "",
+        aliases: props.aliases || [],
+        children: props.children || [],
+        parent: props.parent || "",
+        blurred_name: false,
+        blurred_color: false,
+    });
+
+    const validateTagName = (name: string) => {
+        if (name === "") {
+            return "Tag name cannot be empty";
+        } else if (Object.keys(tags).includes(name)) {
+            return "Tag name already exists";
+        }
+        return "";
+    }
+
+    const tagNameValid = newTagData.blurred_name && validateTagName(newTagData.name) !== "";
+
+    console.log("New tag data", newTagData)
+
+
     return (
     <Modal
         isOpen={isOpen} 
-        onOpenChange={onOpenChange}
+        onOpenChange={(open) => {
+            setNewTagData({
+                name: props.name || "",
+                color: props.color || "",
+                aliases: props.aliases || [],
+                children: props.children || [],
+                parent: props.parent || "",
+                blurred_name: false,
+                blurred_color: false,
+            });
+            return onOpenChange(open);
+        }}
         backdrop="blur"
         motionProps={{
             initial: { opacity: 0, scale: 0.5 },
@@ -752,26 +791,43 @@ export function TagModal(props: {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="flex flex-col gap-2"> {props.name ? "Modify Tag" : "Create New Tag"}</ModalHeader>
+              <ModalHeader className={`flex flex-col gap-2`}> {props.name ? "Modify Tag" : "Create New Tag"}</ModalHeader>
               <ModalBody>
                 <Input
-                    variant="bordered"
+                    id="tag-name-input"
+                    isRequired
+                    variant="faded"
                     label="Tag Name"
                     placeholder="Enter a unique tag name..."
                     defaultValue={props.name}
-                    validate={(value) => {
-                        if (value === "") {
-                            return "Tag name cannot be empty";
-                        } else if (Object.keys(tags).includes(value)) {
-                            return "Tag name already exists";
-                        }
-                        return "";
+                    validate={validateTagName}
+                    isInvalid={tagNameValid}
+                    errorMessage={newTagData.blurred_name ? validateTagName(newTagData.name) : ""}
+                    onValueChange={(value) => {
+                        setNewTagData({...newTagData, name: value});
                     }}
+                    onBlur={() => {
+                        setNewTagData({...newTagData, blurred_name: true});
+                    }}
+                    classNames={{
+                        input: `${tagNameValid ? "placeholder:text-danger" : ""}`
+                    }}
+
                 ></Input>
                 <Select
-                    variant="bordered"
+                    id="tag-color-select"
+                    isRequired
+                    variant="faded"
                     label="Tag Color"
                     placeholder="Select a color..."
+                    onChange={e => {
+                        setNewTagData({...newTagData, color: e.target.value});
+                    }}
+                    onBlur={() => {
+                        setNewTagData({...newTagData, blurred_color: true});
+                    }}
+                    isInvalid={newTagData.blurred_color && newTagData.color === ""}
+                    errorMessage={newTagData.blurred_color && newTagData.color === "" ? "Please select a color" : ""}
                     renderValue={(colors) => {
                         return colors.map((color_data) => {
                             // @ts-expect-error - This is a valid check, the color data is always the name of the color tag
@@ -780,10 +836,10 @@ export function TagModal(props: {
                             return (
                                 <div key={color_data.key} className="flex gap-1.5 items-center">
                                     <div className={`w-4 h-4 rounded-full bg-${color}`}></div>
-                                    <div className="text-sm">{upper_color_name}</div>
+                                    <div className="text-sm text-default-600">{upper_color_name}</div>
                                 </div>
                         )});
-                      }}
+                    }}
                 >
                     {TAG_COLORS.map((color) => {
                         const color_name = color.split("-")[0];
@@ -797,12 +853,134 @@ export function TagModal(props: {
                             </SelectItem>
                     )})}
                 </Select>
+                <Input
+                    id="tag-aliases-input"
+                    variant="faded"
+                    label="Tag Aliases"
+                    placeholder="Enter alternate tag aliases separated by spaces..."
+                    defaultValue={props.aliases?.join(" ")}
+                    onValueChange={(value) => {
+                        setNewTagData({...newTagData, aliases: value.split(" ")});
+                    }}
+                ></Input>
+                <Select
+                    id="tag-parent-select"
+                    variant="faded"
+                    label="Tag Parent"
+                    placeholder="Assign another tag as a parent..."
+                    onChange={e => {
+                        console.log("Setting parent to " + e.target.value)
+                        console.log("Current children", newTagData.children)
+                        // If the parent is a child of the tag, remove it as a children
+                        if (newTagData.children.includes(e.target.value)) {
+                            console.log("Removing parent as child")
+                            setNewTagData({...newTagData, parent: e.target.value, children: newTagData.children.filter((child) => child !== e.target.value)});
+                        } else {
+                            setNewTagData({...newTagData, parent: e.target.value});
+                        }
+                        
+                    }}
+                    size="lg"
+                    classNames={{
+                        label: "text-sm -mt-4"
+                    }}
+                    renderValue={(selected_tags) => {
+                        return selected_tags.map((tag_data) => {
+                            // @ts-expect-error - This is a valid check, the color data is always the name of the color tag
+                            const tag_id: string = tag_data.key;
+                            return (
+                                <PlainTagElement key={tag_id} tag_id={tag_id}/>
+                        )});
+                    }}
+                >
+                    {
+                    // Filter out the current tag from the list of available parents
+                    Object.keys(tags).filter((tag_id) => tag_id != newTagData.name).map((tag_id) => {
+                        return (
+                            <SelectItem key={tag_id} textValue={tag_id}>
+                                <PlainTagElement tag_id={tag_id}/>
+                            </SelectItem>
+                    )})
+                    }
+                </Select>
+                <AnimatePresence>
+                <Select
+                    id="tag-child-select"
+                    selectedKeys={newTagData.children}
+                    variant="faded"
+                    label="Tag Children"
+                    placeholder="Assign tags as children..."
+                    selectionMode="multiple"
+                    onChange={e => {
+                        setNewTagData({...newTagData, children: e.target.value.split(",")});
+                    }}
+                    size="lg"
+                    classNames={{
+                        label: "text-sm -mt-4"
+                    }}
+                    renderValue={(selected_tags) => {
+                        return (
+                            
+                                selected_tags.length > 0
+                                ? <div className="flex gap-2">
+                                    {selected_tags.map((tag_data) => {
+                                        // @ts-expect-error - This is a valid check, the color data is always the name of the color tag
+                                        const tag_id: string = tag_data.key;
+                                        return (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.5 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.5 }}
+                                                transition={{
+                                                    type: "spring",
+                                                    stiffness: 260,
+                                                    damping: 20
+                                                }}
+                                                key={tag_id}
+                                            >
+                                                <PlainTagElement key={tag_id} tag_id={tag_id}/>
+                                            </motion.div>
+                                    )})}
+                                </div>
+                                : <div
+                                
+                                >Assign tags as children...</div>
+                        );
+                    }}
+                >
+                    {
+                        // Filter out the current tag and the parent from the list of available children
+                        Object.keys(tags).filter(
+                            (tag_id) => tag_id != newTagData.parent && tag_id != newTagData.name
+                        ).map((tag_id) => {
+                            return (
+                                <SelectItem key={tag_id} textValue={tag_id}>
+                                    <PlainTagElement tag_id={tag_id}/>
+                                </SelectItem>
+                        )})
+                    }
+                </Select>
+                </AnimatePresence>
+                
               </ModalBody>
               <ModalFooter>
                 <Button color="danger" variant="flat" onPress={onClose}>
                   Cancel
                 </Button>
-                <Button color="secondary" onPress={onClose}>
+                <Button color="secondary" onPress={() =>{
+                    if (validateTagName(newTagData.name) === "" && newTagData.color !== "") {
+                        if (props.name) {
+                            // Modify tag
+                            console.log("Modify tag")
+                        } else {
+                            // Create new tag
+                            console.log("Create tag")
+                        }
+                        onClose();
+                    } else {
+                        setNewTagData({...newTagData, blurred_name: true, blurred_color: true});
+                    }
+                }}>
                   {props.name ? "Save" : "Create"}
                 </Button>
               </ModalFooter>
