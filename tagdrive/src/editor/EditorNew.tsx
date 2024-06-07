@@ -46,6 +46,10 @@ TODO Editor:
 - buttons at top left (create new file? sign out/switch drive?)
 - export tag metadata (no files) and import (between drives)
 ½ make keyboard shortcuts for everything
+- make tag create button skeleton
+- double click tags to edit
+- drag tag to delete
+- tag search bar
 
 
 Old:
