@@ -5,14 +5,15 @@ import {
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 
 
-import { get_file_list, get_tag_file_data, get_tag_file_metadata } from "../drive/google_helpers";
-import { FileCardContainer, FileSearchBox, TagPanel } from "../tag/tag_display";
+import { get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
+import { FileCardContainer, FileSearchBox, TagModal, TagPanel, TagSearchBox } from "../tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
 import { clearSelectedFiles, getDragging, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setQueriedFiles, setVisibleFiles } from "../drive/files_slice";
-import { getTagMetadata, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
+import { getFileTags, getTagFileMetadata, getTagMetadata, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
 import { TagFile } from "../tag/tag_types";
+import { useHotkeys } from "react-hotkeys-hook";
 
 
 let initialized = false;
@@ -26,18 +27,19 @@ TODO Editor:
 ✔ figure out tags lol 
     ✔ i guess just modify tag file as a google doc
 ✔ list files from only specific drive, not just my drive
+✔ save tag file to google drive
 ✔ goodbye old sidebar for files
 ✔ hello new sidebar for tags
     ✔ tag panel (list of all tags, children tags are indented under parents like a tree)
     - tools bar (bomb to delete all tags, dynamite to delete one color (whatever tag is hovered))
     - tag search bar (fuse, shows all tags that match search)
     ✔ plus button to open new tag modal
-- modal for new tag creation
-    - name
-    - color
-    - aliases (optional)
-    - parent tag (optional, otherwise "" for root)
-    - children tags (optional)
+✔ modal for new tag creation
+    ✔ name
+    ✔ color
+    ✔ aliases (optional)
+    ✔ parent tag (optional, otherwise "" for root)
+    ✔ children tags (optional)
 ✔ make searching work
     - Think about exact match/parentheses matching with & and |?
 ✔ double click to open file with weblink
@@ -46,10 +48,10 @@ TODO Editor:
 - buttons at top left (create new file? sign out/switch drive?)
 - export tag metadata (no files) and import (between drives)
 ½ make keyboard shortcuts for everything
-- make tag create button skeleton
-- double click tags to edit
-- drag tag to delete
-- tag search bar
+✔ make tag create button skeleton
+✔ double click tags to edit
+✔ drag tag to delete
+✔ tag search bar
 
 
 Old:
@@ -65,6 +67,9 @@ function EditorNew() {
     const visible_files = useAppSelector(getVisibleFiles);
     const queried_files = useAppSelector(getQueriedFiles);
     const dragging = useAppSelector(getDragging);
+    const tags = useAppSelector(getTagMetadata);
+    const file_tags = useAppSelector(getFileTags);
+    const tag_file_metadata = useAppSelector(getTagFileMetadata);
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
 
@@ -78,7 +83,6 @@ function EditorNew() {
                 dispatch(setTagMetadata(data.TAG_DATA));
                 dispatch(setFileTags(data.FILE_DATA));
                 get_file_list(drive_id).then((files) => {
-                    console.log("running", typeof files, files);
                     dispatch(setFiles(files));
                     dispatch(setQueriedFiles(files));
                     dispatch(setQueriedTags(Object.values(data.TAG_DATA)));
@@ -88,10 +92,19 @@ function EditorNew() {
         });
         initialized = true;
     }
+    const ref = useHotkeys("ctrl+s", (_, handler) => {
+        if (!handler || !handler.keys) return;
+        console.log("Saving");
+        // Save tag file to google drive
+        save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
+            console.log("Saved", result);
+        });
+    }, { preventDefault: true })
 
     return (
         <>  
-            <div className="align-middle justify-center h-screen p-8"
+            {/* @ts-expect-error This is a valid ref, its from the useHotkeys hook and is designed to be used this way */}
+            <div className="align-middle justify-center h-screen p-8" ref={ref} tabIndex={-1}
             onClick={()=>{
                 dispatch(clearSelectedFiles());
             }}
@@ -116,17 +129,17 @@ function EditorNew() {
                             <div
                             id="tag-search-bar"
                             className="w-full h-[80px] flex-none bg-primary-200 rounded-lg"></div>
-                            <div
+                            {/* <div
                             id="tag-search-bar"
-                            className="w-full h-[60px] flex-none bg-primary-300 rounded-lg"></div>
-                            <TagPanel/>
-                            <div
-                            id="tag-end-bar"
-                            className="w-full h-[80px] flex-none bg-primary-200"></div>
+                            className="w-full h-[60px] flex-none bg-primary-300 rounded-lg"></div> */}
+                            <TagSearchBox/>
+                            <div className="w-full h-full flex-1 overflow-auto">
+                                <TagPanel/>
+                            </div>
                         </div>
                         <div
                         id="main-panel"
-                        className="flex flex-col gap-2 sm:tag overflow-auto row-span-4 sm:row-auto sm:col-span-3 md:col-span-4 lg:col-span-5 xl:col-span-3 2xl:col-span-4 w-full h-full">
+                        className="flex flex-col gap-2 overflow-auto row-span-4 sm:row-auto sm:col-span-3 md:col-span-4 lg:col-span-5 xl:col-span-3 2xl:col-span-4 w-full h-full">
                             <div className="w-full h-fit flex-none">
                                 <FileSearchBox/>
                             </div>
@@ -143,10 +156,9 @@ function EditorNew() {
                                     dispatch(setVisibleFiles(visible_files + 30));
                                 }
                             }}
-                            className="w-full h-full flex-1 overflow-y-scroll rounded-3xl bg-background/60">
-                                <FileCardContainer></FileCardContainer>
+                            className="w-full h-full flex-1 overflow-y-scroll rounded-3xl bg-primary-50">
+                                <FileCardContainer/>
                             </div>
-                            
                         </div>
                     </div>
                     {/* <div className="grid grid-cols-12 gap-2 items-center justify-center h-full w-full">

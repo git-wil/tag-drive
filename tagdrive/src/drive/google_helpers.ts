@@ -113,29 +113,7 @@ export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
 async function create_tag_file(drive_id: string): Promise<string> {
     console.log("Creating tag file");
     const fileData = JSON.stringify({
-        TAG_DATA: {
-            "TagFile0": {
-                "color": "red-800",
-                "name": "TagFile0",
-                "aliases": [],
-                "children": [],
-                "parent": "TagFile2",
-            },
-            "TagFile1":{
-                "color": "purple-800",
-                "name": "TagFile1",
-                "aliases": ["Haha funny tag"],
-                "children": [],
-                "parent": "",
-            },
-            "TagFile2":{
-                "color": "teal-700",
-                "name": "TagFile2",
-                "aliases": ["magical", "vacuum"],
-                "children": ["TagFile0"],
-                "parent": "",
-            }
-        },
+        TAG_DATA: {},
         FILE_DATA: {
             "": {
                 "tags": [],
@@ -211,13 +189,13 @@ export async function get_tag_file_data(tag_file_metadata: GoogleFile) {
 //     return file_data;
 // }
 
-export async function save_tag_file(tags: TagList, tag_file_metadata: GoogleFile, drive_id: string): Promise<GoogleFile> {
+export async function save_tag_file(tag_file: TagFile, tag_file_metadata: GoogleFile, drive_id: string): Promise<GoogleFile> {
     // Check if the tag file exists
     if (!tag_file_metadata) {
         tag_file_metadata = await get_tag_file_metadata(drive_id);
     }
 
-    const result = await google_modular.files.update(tag_file_metadata.id, JSON.stringify(tags), {
+    const result = await google_modular.files.update(tag_file_metadata.id, JSON.stringify(tag_file), {
         mimeType: tag_file_metadata.mimeType,
         name: tag_file_metadata.name,
     }, {

@@ -4,20 +4,20 @@
         "name": "TagFile0",
         "aliases": [],
         "children": [],
-        "files": ["File0"]
+        "parent": "TagFile2"
     },
     "TagFile1":{
         "color": "purple-800",
         "name": "TagFile1",
-        "aliases": [],
+        "aliases": ["Haha", "funny", "tag"],
         "children": [],
-        "files": []
+        "parent": ""
     },
     "TagFile2":{
         "color": "teal-700",
         "name": "TagFile2",
-        "aliases": [],
-        "children": [],
-        "files": ["File0"]
+        "aliases": ["magical", "vacuum"],
+        "children": ["TagFile0"],
+        "parent": ""
     }
 }
