@@ -1,8 +1,11 @@
 import "./Editor.css";
 import {
+    Button,
     Card,
+    Spinner,
 } from "@nextui-org/react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { useEffect, useState } from "react";
 
 
 import { get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
@@ -10,15 +13,16 @@ import { FileCardContainer, FileSearchBox, TagModal, TagPanel, TagSearchBox } fr
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
-import { clearSelectedFiles, getDragging, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setQueriedFiles, setVisibleFiles } from "../drive/files_slice";
-import { getFileTags, getTagFileMetadata, getTagMetadata, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
+import { clearSelectedFiles, getDragging, getFilesLoaded, getLoadingModal, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setLoadingModal, setQueriedFiles, setVisibleFiles } from "../drive/files_slice";
+import { getFileTags, getTagFileMetadata, getTagMetadata, getModified, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata, setModified } from "../tag/tags_slice";
 import { TagFile } from "../tag/tag_types";
 import { useHotkeys } from "react-hotkeys-hook";
+import { AnimatePresence, motion } from "framer-motion";
 
 
 let initialized = false;
 
-const drive_id = ""; // "0AH0hueN2V6xzUk9PVA";
+// const drive_id = ""; // "0AH0hueN2V6xzUk9PVA";
 
 
 
@@ -31,8 +35,8 @@ TODO Editor:
 ✔ goodbye old sidebar for files
 ✔ hello new sidebar for tags
     ✔ tag panel (list of all tags, children tags are indented under parents like a tree)
-    - tools bar (bomb to delete all tags, dynamite to delete one color (whatever tag is hovered))
-    - tag search bar (fuse, shows all tags that match search)
+    ✖ tools bar (bomb to delete all tags, dynamite to delete one color (whatever tag is hovered))
+    ✔ tag search bar (fuse, shows all tags that match search)
     ✔ plus button to open new tag modal
 ✔ modal for new tag creation
     ✔ name
@@ -45,48 +49,90 @@ TODO Editor:
 ✔ double click to open file with weblink
 ✔ adaptive rendering of ~30 files at a time as you scroll
 - consider what to show if a file has no tags
-- buttons at top left (create new file? sign out/switch drive?)
+½ buttons at top left (create new file? sign out/switch drive?)
 - export tag metadata (no files) and import (between drives)
 ½ make keyboard shortcuts for everything
 ✔ make tag create button skeleton
 ✔ double click tags to edit
 ✔ drag tag to delete
 ✔ tag search bar
+- consider modifying tag name
+- consider searching by parent name
+    - involves accepting folders in get_drive_files
+- consider searching by file type
+- consider stripping ending ' to make search surrounded by single quotes be exact
+    - could also replace double quotes with single quotes
+- consider making loading bar instead of spinner that is based on previous
+  size of drive split into thousands that updates as every thousand loads
+
+
+
+IMPORTANT
+✔ delete tags
+✔ switch drives
+✔ log out
+- hover or click tag to see information (aliases, parent, children)
+
+
 
 
 Old:
 ✖ sidebar (single click) 
-    - show thumbnail, full name, tags ✔
-    - add tags
-    - create new tag
+    ✖ show thumbnail, full name, tags ✔
+    ✖ add tags
+    ✖ create new tag
 */
 
 
 function EditorNew() {
     const dispatch = useAppDispatch();
+
+    const drive_id = localStorage.getItem("drive") || "";
+
     const visible_files = useAppSelector(getVisibleFiles);
     const queried_files = useAppSelector(getQueriedFiles);
     const dragging = useAppSelector(getDragging);
     const tags = useAppSelector(getTagMetadata);
     const file_tags = useAppSelector(getFileTags);
     const tag_file_metadata = useAppSelector(getTagFileMetadata);
+    const loading_modal = useAppSelector(getLoadingModal);
+    const is_modified = useAppSelector(getModified);
+    const files_loaded = useAppSelector(getFilesLoaded);
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
 
+    window.onbeforeunload = () => {
+        if (is_modified) {
+            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id)
+            for (let i = 0; i < 300000000; i++) {
+                // Wait for save
+            }
+        }
+        // const event = e || window.event
+        // if (event) {
+        //     event.returnValue = "You have unsaved changes. Are you sure you want to leave?"
+        // }
+        // return "You have unsaved changes. Are you sure you want to leave?"
+    };
+
     if (!initialized) {
+        dispatch(setLoadingModal({open: true, message: "Loading tag file..."}))
         // Load tags and files
         get_tag_file_metadata(drive_id).then((metadata) => {
             console.log("Got metadata", metadata)
             dispatch(setTagFileMetaData(metadata));
+            dispatch(setLoadingModal({open: true, message: "Loading tag data..."}))
             get_tag_file_data(metadata).then((data: TagFile) => {
                 console.log("Got data", data);
                 dispatch(setTagMetadata(data.TAG_DATA));
                 dispatch(setFileTags(data.FILE_DATA));
+                dispatch(setLoadingModal({open: true, message: "Loading files..."}))
                 get_file_list(drive_id).then((files) => {
                     dispatch(setFiles(files));
                     dispatch(setQueriedFiles(files));
                     dispatch(setQueriedTags(Object.values(data.TAG_DATA)));
                     dispatch(setFilesLoaded(true));
+                    dispatch(setLoadingModal({open: false, message: "Done"}))
                 });
             });
         });
@@ -95,10 +141,15 @@ function EditorNew() {
     const ref = useHotkeys("ctrl+s", (_, handler) => {
         if (!handler || !handler.keys) return;
         console.log("Saving");
+        dispatch(setLoadingModal({open: true, message: "Saving..."}));
         // Save tag file to google drive
-        save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
-            console.log("Saved", result);
-        });
+        if (is_modified) {
+            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
+                console.log("Saved", result);
+                dispatch(setLoadingModal({open: false, message: "Saving..."}));
+                dispatch(setModified(false));
+            });
+        }
     }, { preventDefault: true })
 
     return (
@@ -109,6 +160,21 @@ function EditorNew() {
                 dispatch(clearSelectedFiles());
             }}
             >
+                <AnimatePresence>
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: (loading_modal.open) ? 1 : 0 }}
+                        exit={{ opacity: 0 }}
+                        className="shadow-md shadow-primary-50 absolute m-auto left-0 right-0 top-0 bottom-0 w-1/4 z-50 h-fit flex items-center justify-center rounded-2xl"
+                    >
+                        <div
+                            className="h-full w-full p-5 flex items-center justify-center rounded-2xl bg-primary-900/95"
+                        >
+                        <h1 className="text-2xl text-primary pe-5 select-none">{loading_modal.message}</h1>
+                        <Spinner size="lg" color="primary" />
+                        </div>
+                    </motion.div>
+                </AnimatePresence>
                 <Card
                     isBlurred
                     shadow="sm"
@@ -128,7 +194,38 @@ function EditorNew() {
                         className="relative flex flex-col overflow-auto gap-2 row-span-2 w-full order-last sm:order-first sm:row-auto sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-1 2xl:grid-cols-1 h-full">
                             <div
                             id="tag-search-bar"
-                            className="w-full h-[80px] flex-none bg-primary-200 rounded-lg"></div>
+                            className="w-full h-fit flex-none flex flex-row gap-2 rounded-lg">
+                                <Button
+                                    fullWidth
+                                    color="primary"
+                                    variant="ghost"
+                                    isDisabled={!files_loaded}
+                                    className="text-primary-800 w-2/5 bg-primary-200 h-[50px] text-[0.92rem]"
+                                    onClick={() => {
+                                        if (is_modified) {
+                                            dispatch(setLoadingModal({open: true, message: "Saving..."}));
+                                            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
+                                                console.log("Saved", result);
+                                                dispatch(setModified(false));
+                                                window.location.href = "/index.html";
+                                            });
+                                        } else {
+                                            window.location.href = "/index.html";
+                                        }
+                                    }}
+                                >
+                                    Switch Drive
+                                </Button>
+                                <Button
+                                    fullWidth
+                                    isDisabled
+                                    color="primary"
+                                    variant="ghost"
+                                    className="text-primary-800 w-3/5 bg-primary-200 h-[50px] text-[0.92rem]"
+                                >
+                                    Create New File
+                                </Button>
+                            </div>
                             {/* <div
                             id="tag-search-bar"
                             className="w-full h-[60px] flex-none bg-primary-300 rounded-lg"></div> */}

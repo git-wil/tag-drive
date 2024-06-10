@@ -1,18 +1,9 @@
 import "../editor/Editor.css";
 import {
     Button,
-    // Autocomplete,
-    // AutocompleteItem,
-    // Button,
     Card,
     Image,
     Input,
-    // Listbox,
-    // ListboxItem,
-    // Popover,
-    // PopoverContent,
-    // PopoverTrigger,
-    // Selection,
     Skeleton,
     Spacer,
     Tooltip,
@@ -27,13 +18,12 @@ import {
 } from "@nextui-org/react";
 import { GoogleFile } from "../drive/google_types.js";
 import { Tag, TagID } from "./tag_types.js";
-import { addTagToFileID, getFileTags, getFileTagsByID, getModifyingTagData, getQueriedTags, getTagByID, getTagMetadata, modifyTagMetadata, removeTagFromFileID, resetQueriedTags, setModifyingTagData, setQueriedTags } from "./tags_slice.js";
+import { addTagToFileID, deleteTagMetadata, getFileTags, getFileTagsByID, getModifyingTagData, getQueriedTags, getTagByID, getTagMetadata, modifyTagMetadata, removeTagFromFileID, resetQueriedTags, setModifyingTagData, setQueriedTags } from "./tags_slice.js";
 import { useAppDispatch, useAppSelector } from "../store/hooks.js";
-import { appendSelectedFile, appendSelectedFilesBetween, clearSelectedFiles, getDraggedOver, getDragging, getFiles, getFilesLoaded, getQueriedFiles, getSelectedFiles, getVisibleFiles, isSelectedFile, removeDraggedOver, removeSelectedFile, resetDraggedOver, resetDragging, setDraggedOver, setDragging, setQueriedFiles, setSelectedFiles, setVisibleFilesSafe, toggleSelectedFile } from "../drive/files_slice.js";
+import { appendSelectedFile, appendSelectedFilesBetween, clearSelectedFiles, getDraggedOver, getDragging, getFiles, getFilesLoaded, getQueriedFiles, getSelectedFiles, getVisibleFiles, isSelectedFile, resetDraggedOver, resetDragging, setDraggedOver, setDragging, setQueriedFiles, setSelectedFiles, toggleSelectedFile } from "../drive/files_slice.js";
 import { useState } from "react";
-import { getTypedTags, getValue, setTypedTags, setValue } from "./tag_search_slice.js";
 
-import { AnimatePresence, animate, motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 import Fuse from "fuse.js";
 import { getCurrentBreakpoint } from "../editor/get_screen_break.js";
@@ -46,12 +36,14 @@ export function FileSearchBox() {
     const dispatch = useAppDispatch();
     const files = useAppSelector(getFiles);
     const file_tags = useAppSelector(getFileTags);
+    const files_loaded = useAppSelector(getFilesLoaded);
     return (
         <Input
             variant="bordered"
             placeholder="Filter files by name or tag..."
             isClearable
             labelPlacement="inside"
+            isDisabled={!files_loaded}
             classNames={{
                 base: "h-full",
                 mainWrapper: "h-full",
@@ -74,7 +66,7 @@ export function FileSearchBox() {
                         ignoreLocation: true,
                         useExtendedSearch: true,
                         // includeScore: true,
-                        getFn: (file: GoogleFile, path: string | string[]) => {
+                        getFn: (file: GoogleFile) => {
                             return file.name + (file_tags[file.id] || {search_string: ""}).search_string;
                         },
                         threshold: 0.5,
@@ -203,13 +195,13 @@ export function DraggableTagElementHandler(props: {tag_id: TagID, modify_modal_o
     const tag = useAppSelector(getTagByID(tag_id));
 
     return (
-        <div className="gap-4 h-full">
+        <div className="gap-4 h-full w-full">
         <motion.div
             animate={{
                 scale: pressed ? 0.99 : 1
             }}
             
-            className={`flex flex-row gap-2 items-center rounded-md bg-secondary-700/20 p-1.5`}
+            className={`flex flex-row gap-2 w-full items-center rounded-md bg-secondary-700/20 p-1.5`}
         >
             {
                 (tag && tag.children.length > 0)
@@ -240,17 +232,17 @@ export function DraggableTagElementHandler(props: {tag_id: TagID, modify_modal_o
                     viewBox="0 0 24 24"
                     strokeWidth={2.5}
                     stroke="currentColor"
-                    className={"size-4 -me-0.5 active:outline-none focus:outline-none"}
+                    className={"size-4 -me-0.5 active:outline-none focus:outline-none flex-none"}
                     tabIndex={-1}
                 >
                     <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                 </motion.svg>
                 :
-                <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" className="-me-0.5">
+                <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" className="-me-0.5 flex-none">
                     <circle r={4.5} cx={8.25} cy={8.25} stroke="white" strokeWidth={1.5} fill="none" className="size-4"></circle>
                 </svg>
             }
-            <div
+            <div className="flex-1 w-1"
             >
                 <DraggableTagElement
                     tag_id={props.tag_id}
@@ -300,7 +292,7 @@ export function DraggableTagElement(props: {tag_id: TagID, dragging_type?: "tag"
     return (
         <Skeleton
             isLoaded={tag !== undefined}
-            className="h-fit rounded-full w-fit"
+            className="h-fit rounded-full w-fit max-w-full"
             classNames={{
                 base: "bg-secondary-700/50 before:via-secondary-700/60"
             }}
@@ -366,7 +358,7 @@ export function DraggableTagElement(props: {tag_id: TagID, dragging_type?: "tag"
                     props.modify_modal_onOpen();
                 }
             }}
-            className={`flex h-[30px] w-fit z-25 px-3 py-1.5 bg-${tag.color} rounded-full cursor-move tag-element`}>
+            className={`flex h-fit w-fit max-w-full z-25 px-3 py-1 bg-${tag.color} rounded-full cursor-move tag-element`}>
                 {/* <div className="w-1">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
@@ -378,7 +370,7 @@ export function DraggableTagElement(props: {tag_id: TagID, dragging_type?: "tag"
                     </svg>
                 </div> */}
                 
-                <h6 className="text-xs h-fit drop-shadow">{tag.name}</h6>
+                <h6 className="text-sm h-fit w-full drop-shadow truncate">{tag.name}</h6>
             </motion.div>}
         </Skeleton>
     );
@@ -528,15 +520,17 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
     const icon_link = file?.iconLink;
     const file_tag_ids = useAppSelector(getFileTagsByID(file?.id || "")) || {tags: []};
 
+    const files_loaded = useAppSelector(getFilesLoaded);
+
     if (is_selected) {
-        console.log(file?.parents)
+        console.log(file_tag_ids)
     }
 
 
     return (
       <motion.div
         whileTap={{
-            scale: dragging_metadata.type != "file" ? 0.97 : 1,
+            scale: (files_loaded && dragging_metadata.type != "file") ? 0.97 : 1,
         }}
         id={`file-card-${index}`}
         onDoubleClick={(e)=>{
@@ -617,9 +611,21 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
                     isLoaded={file !== null}
                     className="rounded-b-lg h-fit bg-primary-700/25 before:via-primary-700/30"
                 >
-                    {file !== null ? <Tooltip content={file_name} delay={250} className="w-[150px] bg-zinc-900/85 shadow-md">
-                        <h3 className="truncate w-full h-[30px] bg-primary-600/15 rounded-b-md py-1 px-3 font-medium">{file_name}</h3>
-                    </Tooltip> : <div className="w-full h-[30px]"></div>}
+                    {file !== null
+                    ? <Tooltip
+                        content={file_name}
+                        delay={250}
+                        className="bg-zinc-900/85 shadow-md"
+                        style={{
+                            wordBreak: "break-word",
+                        }}
+                        classNames={{
+                          base: "w-[150px]",
+                          content: "break-words whitespace-break-spaces"  
+                        }}
+                    >
+                        <h3 className="truncate w-full h-[30px] bg-primary-600/15 rounded-b-md py-1 px-3 font-medium text-center">{file_name}</h3>
+                    </Tooltip> : <div className="w-[150px] h-[30px]"></div>}
                 </Skeleton>
                 <Spacer y={3}/>
                 <Skeleton
@@ -719,6 +725,7 @@ export function TagSearchBox() {
     const dispatch = useAppDispatch();
     const tags: {[id: string]: Tag} = useAppSelector(getTagMetadata);
     const tag_values = Object.values(tags);
+    const files_loaded = useAppSelector(getFilesLoaded);
     return (
         
             <div
@@ -728,6 +735,7 @@ export function TagSearchBox() {
                 variant="bordered"
                 placeholder="Filter tags..."
                 isClearable
+                isDisabled={!files_loaded}
                 labelPlacement="inside"
                 classNames={{
                     base: "h-fit",
@@ -848,6 +856,8 @@ export function TagModal(props: {
     }
 
     const tagNameValid = modify_data.blurred_name && validateTagName(modify_data.name) !== "";
+    
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
     return (
     <Modal
@@ -864,6 +874,10 @@ export function TagModal(props: {
         }}
         classNames={{
             body: "",
+        }}
+        onClose={() => {
+            dispatch(setModifyingTagData({name: "", color: "", aliases: [], children: [], parent: "", is_new: true, blurred_name: false, blurred_color: false}));
+            setDeleteModalOpen(false);
         }}
     >
         <ModalContent>
@@ -1043,31 +1057,97 @@ export function TagModal(props: {
                 
               </ModalBody>
               <ModalFooter>
-                <Button color="danger" variant="flat" onPress={onClose}>
-                  Cancel
-                </Button>
-                <Button color="secondary" onPress={() =>{
-                    if (validateTagName(modify_data.name) === "" && modify_data.color !== "") {
-                        console.log("Valid tag data", modify_data)
-                        // Tag is valid, so we can dispatch the action to create/modify the tag
-                        dispatch(modifyTagMetadata({tag_id: modify_data.name, tag_data: {
-                            name: modify_data.name,
-                            color: modify_data.color,
-                            aliases: modify_data.aliases,
-                            parent: modify_data.parent,
-                            children: modify_data.children
-                        }}))
-                        // Update all tagged files with the new tag information
-                        
-                        dispatch(resetQueriedTags());
-                        onClose();
-                    } else {
-                        // Update error messages for all fields
-                        dispatch(setModifyingTagData({...modify_data, blurred_name: true, blurred_color: true}));
-                    }
-                }}>
-                  {modify_data.is_new ? "Create" : "Save"}
-                </Button>
+              <div className="flex justify-between w-full gap-2">
+                        {modify_data.is_new ? <div></div> : <div id="delete-tag">
+                            <Button color="danger" variant="shadow" onPress={
+                                () => setDeleteModalOpen(true)
+                            }>
+                                Delete
+                            </Button>
+                            <AnimatePresence>
+                            {
+                                deleteModalOpen && (<motion.div
+                                    initial={{ opacity: 0, scale: 0 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{
+                                        type: "spring",
+                                        stiffness: 260,
+                                        damping: 20,
+                                        duration: 0.2
+                                    }}
+                                    exit={{ opacity: 0, scale: 0 }}
+                                    className={"absolute w-3/4 h-fit m-auto left-0 right-0 top-0" +
+                                        " bottom-0 bg-danger z-50 items-center justify-center rounded-xl" +
+                                        " text-danger-foreground shadow-xl shadow-danger/40 flex flex-col p-5"}
+                                >
+                                    <div className="p-5">
+                                        <span className="font-semibold text-lg">
+                                        Are you sure you want to delete 
+                                        </span>
+                                        <span className="ps-1 w-1/5 font-[750] text-lg"
+                                        >"{modify_data.name}"</span>
+                                        <span className="font-semibold text-lg"
+                                        >? All child tags will be separated as new tags. This action cannot be undone.</span>
+                                    </div>
+                                    <div className="flex flex-row gap-10">
+                                        <Button
+                                            autoFocus
+                                            variant="flat"
+                                            className="bg-danger-50/40"
+                                            onPress={() => {
+                                                setDeleteModalOpen(false);
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            variant="flat" 
+                                            className="bg-danger-50/90"
+                                            onPress={() => {
+                                                dispatch(deleteTagMetadata(modify_data.name));
+                                                dispatch(resetQueriedTags());
+                                                onClose();
+                                            }}
+                                        >
+                                            Confirm
+                                        </Button>
+                                    </div>
+                                </motion.div>)
+                            }
+                            </AnimatePresence>
+                        </div>}
+                        <div className="flex gap-2">
+                            <Button color="danger" variant="flat" onPress={
+                                () => {
+                                    onClose();
+                                }
+                            }>
+                                Cancel
+                            </Button>
+                            <Button color="secondary" onPress={() =>{
+                                if (validateTagName(modify_data.name) === "" && modify_data.color !== "") {
+                                    console.log("Valid tag data", modify_data)
+                                    // Tag is valid, so we can dispatch the action to create/modify the tag
+                                    dispatch(modifyTagMetadata({tag_id: modify_data.name, tag_data: {
+                                        name: modify_data.name,
+                                        color: modify_data.color,
+                                        aliases: modify_data.aliases,
+                                        parent: modify_data.parent,
+                                        children: modify_data.children
+                                    }}))
+                                    // Update all tagged files with the new tag information
+                                    
+                                    dispatch(resetQueriedTags());
+                                    onClose();
+                                } else {
+                                    // Update error messages for all fields
+                                    dispatch(setModifyingTagData({...modify_data, blurred_name: true, blurred_color: true}));
+                                }
+                            }}>
+                            {modify_data.is_new ? "Create" : "Save"}
+                            </Button>
+                        </div>
+                </div>
               </ModalFooter>
             </>
           )}

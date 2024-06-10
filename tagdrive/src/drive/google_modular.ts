@@ -91,6 +91,7 @@ class files_class {
             method: "PATCH",
             headers,
             body: form,
+            keepalive: true,
         });
         /// console.log("Update Response json", await response.json())
         return await response.json();

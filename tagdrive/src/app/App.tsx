@@ -1,57 +1,98 @@
 import { useState } from "react";
 import "./App.css";
 import {
-    Autocomplete,
-    AutocompleteItem,
     Button,
     Card,
     CardBody,
     Select,
     SelectItem,
-    Slider,
-    Image,
     Spacer,
 } from "@nextui-org/react";
-import { authorize, getAuth } from "../drive/auth";
+import { AUTH_URL, REDIRECT_URI, getAuth, logout, saveAuthByCode } from "../drive/auth";
 import { GoogleDrive } from "../drive/google_types";
 import { get_drive_list } from "../drive/google_helpers";
-
-export let setAuthorized: CallableFunction | null = null;
-let pre_authorized = await getAuth() !== null; 
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { isAuthorized, setAuthorized } from "../drive/files_slice";
 
 
 
 function App() {
-    const [authorized, local_setAuthorized] = useState(false);
-    setAuthorized = local_setAuthorized;
+    const dispatch = useAppDispatch();
+    const authorized = useAppSelector(isAuthorized);
+    const [loaded, setLoaded] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [drives, setDrives] = useState<GoogleDrive[]>([]);
 
-    if (authorized || pre_authorized) {
-        // TODO: Update drives on page load if pre-authorized
-        // Only run once after authorization
-        setAuthorized(false);
-        pre_authorized = false;
+    window.onload = async () => {
+        if (await getAuth() !== null) {
+            dispatch(setAuthorized(true));
+        }
+    }
+
+    if (authorized && !loaded && !loading) {
+        setLoading(true);
         get_drive_list().then(async (data) => {
+            console.log("Got drives", data)
             const new_drives: GoogleDrive[] = [];
+            new_drives.push({
+                id: "",
+                name: "My Drive",
+            });
             for (const drive of data.drives) {
                 new_drives.push(drive);
             }
             console.log(new_drives);
             setDrives(new_drives);
-        }); 
+            setLoaded(true);
+        });
     }
+
+
+    const authWindow = async () => {
+        const new_window_width = 450;
+        const new_window_height = 600;
+        const new_window = window.open(
+            AUTH_URL, 
+            "", 
+            `width=${new_window_width},height=${new_window_height}`
+        )!;
+        new_window.moveTo(
+            new_window.opener.screen.width / 2 - new_window_width/2,
+            new_window.opener.screen.height / 2 - new_window_height/2
+        );
+        new_window.focus();
+        const check_window = setInterval(async () => {
+            try {
+                // Check if the window has been redirected to the redirect uri
+                if (!new_window.crossOriginIsolated) {
+                    if (new_window.location.href.includes(REDIRECT_URI)) {
+                        // Get the authorization code from the url and save it
+                        clearInterval(check_window);
+                        const code = new_window.location.href.split("code=")[1].split("&")[0];
+                        new_window.close();
+                        await saveAuthByCode(code);
+                        console.log("Authorized!");
+                        dispatch(setAuthorized(true));
+                    }
+                }
+            } catch (error) {
+                // Ignore any DOM errors, its just the google auth page not allowing
+                // the old window to access location.href
+            }
+        // Check every 200ms
+        }, 200);
+    }
+
+
+    console.log("Authorized", authorized, "Loaded", loaded, "Drives", drives);
     
     return (
-        <>  
-            <Spacer y={
-                // TODO: Center the card on the screen dynamically, this is bad
-                `${window.innerHeight/4}px`
-                } />
-            <div className="flex align-middle justify-center">
+        <div className="w-full h-screen">
+            <div className="flex absolute m-auto top-0 bottom-0 left-0 right-0 h-full w-full align-middle justify-center">
                 <Card
                     isBlurred
                     shadow="sm"
-                    className="border-none bg-background/60 dark:bg-default-100/50 max-w-[1000px] w-[500px] p-10"
+                    className="m-auto border-none bg-background/60 dark:bg-default-100/50 w-1/3 h-fit p-10"
                 >
                     <CardBody>
                         <div className="grid grid-cols-10 md:grid-cols-10 gap-6 md:gap-4 items-center justify-center">
@@ -61,28 +102,62 @@ function App() {
                                 <Button
                                     color="danger"
                                     className="w-full min-h-14 py-2 px-3"
-                                    onPress={authorize}
+                                    onPress={async () => {
+                                        // If we are not authorized, show popup
+                                        if (!authorized) {
+                                            const result = await authWindow();
+                                            console.log("Result", await result);
+                                        } else {
+                                            // Otherwise, log out
+                                            logout();
+                                            setLoaded(false);
+                                            setLoading(false);
+                                            dispatch(setAuthorized(false));
+                                        }
+                                    }}
                                 >
-                                    Authenticate
+                                    {authorized ? "Logout" : "Login"}
                                 </Button>
                             </div>
                             <div className="relative col-span-10">
                                 <Select
                                     id="drive-select"
-                                    isDisabled={drives.length === 0}
+                                    isDisabled={!loaded}
                                     label="Indexed Drive"
                                     placeholder="Select a drive"
-                                    onSelectionChange={(e) => {
-                                        console.log(e);
+                                    onChange={(e) => {
+                                        console.log("Selected", e.target.value);
+                                        localStorage.setItem("drive", e.target.value);
+                                        window.location.href = "/editor";
                                     }}
                                     className="form-btn disabled"
                                 >
                                     {drives.map((drive) => (
                                         <SelectItem
                                             key={drive.id}
-                                            value={drive.id}
+                                            textValue={drive.name}
+                                            startContent={
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    strokeWidth={1.5}
+                                                    // stroke="hsl(var(--nextui-primary-900))"
+                                                    className="size-4"
+                                                    style={{
+                                                        // Consider using the color from the drive
+                                                        // stroke: drive.colorRgb || "hsl(var(--nextui-primary-900))",
+                                                        stroke: "hsl(var(--nextui-primary-900))",
+                                                    }}    
+                                                >
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                                                </svg>
+
+                                            }
                                         >
+                                            <div className="flex items-center">
                                             {drive.name}
+                                            </div>
                                         </SelectItem>
                                     ))}
                                 </Select>
@@ -188,7 +263,7 @@ function App() {
                     </CardBody>
                 </Card>
             </div>
-        </>
+        </div>
     );
 }
 

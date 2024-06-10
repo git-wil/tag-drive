@@ -7,6 +7,7 @@ const initial_files: GoogleFile[] = Array(30).fill(null as GoogleFile | null)
 export const filesSlice = createSlice({
   name: 'files',
   initialState: {
+    authorized: false,
     files: initial_files,
     files_loaded: false,
     queried_files: initial_files,
@@ -15,8 +16,15 @@ export const filesSlice = createSlice({
     selected_files: [] as number[],
     dragging: {type: "", id: ""},
     dragged_over: [] as number[],
+    loading_modal: {
+      open: true,
+      message: "Loading..."
+    }
   },
   reducers: {
+    setAuthorized: (state, action) => {
+      state.authorized = action.payload;
+    },
     setFiles: (state, action) => {
       // Redux Toolkit allows us to write "mutating" logic in reducers. It
       // doesn't actually mutate the state because it uses the immer library,
@@ -94,10 +102,14 @@ export const filesSlice = createSlice({
     resetDragging: (state) => {
       state.dragging = {type: "", id: ""}
     },
+    setLoadingModal: (state, action) => {
+      state.loading_modal = action.payload
+    }
   }
 })
 
 export const {
+  setAuthorized,
   setFiles,
   setFilesLoaded,
   setSelectedFiles,
@@ -113,7 +125,9 @@ export const {
   removeDraggedOver,
   setDragging,
   resetDragging,
+  setLoadingModal,
 } = filesSlice.actions
+export const isAuthorized = (state: RootState) => state.files.authorized
 export const getFiles = (state: RootState) => state.files.files
 export const getFilesLoaded = (state: RootState) => state.files.files_loaded
 export const getVisibleFiles = (state: RootState) => state.files.visible_files
@@ -122,5 +136,6 @@ export const getSelectedFiles = (state: RootState) => state.files.selected_files
 export const isSelectedFile = (index: number) => ((state: RootState) => state.files.selected_files.includes(index))
 export const getDraggedOver = (state: RootState) => state.files.dragged_over
 export const getDragging = (state: RootState) => state.files.dragging
+export const getLoadingModal = (state: RootState) => state.files.loading_modal
 
 export default filesSlice.reducer

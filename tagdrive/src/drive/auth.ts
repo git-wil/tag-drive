@@ -1,10 +1,11 @@
+import { useAppDispatch } from "../store/hooks";
 import { CLIENT_ID, CLIENT_SECRET } from "./credentials";
-import { setAuthorized } from "../app/App";
+import { setAuthorized } from "./files_slice";
 
 const SCOPE = "https://www.googleapis.com/auth/drive";
 export const REDIRECT_URI = "http://localhost:3000";
 // Create the authorization url for Google OAuth2
-const AUTH_URL = `https://accounts.google.com/o/oauth2/v2/auth?
+export const AUTH_URL = `https://accounts.google.com/o/oauth2/v2/auth?
 client_id=${encodeURIComponent(CLIENT_ID)}&
 redirect_uri=${encodeURIComponent(REDIRECT_URI)}&
 response_type=code&
@@ -16,14 +17,16 @@ access_type=offline`.replace(/\s+/g, "");
 // Check if the user is authorized, if not, authorize them
 export async function authorize() {
     if (await getAuth() === null) {
-        authorizeWindow();
+        return AuthorizeWindow();
     } else {
-        setAuthorized!(true);
+        console.log("Already authorized");
+        return null;
     }
 }
 
 // Open a new window to authorize the user
-async function authorizeWindow() {
+function AuthorizeWindow() {
+    const dispatch = useAppDispatch();
     const new_window_width = 450;
     const new_window_height = 600;
     const new_window = window.open(
@@ -46,7 +49,8 @@ async function authorizeWindow() {
                     const code = new_window.location.href.split("code=")[1].split("&")[0];
                     new_window.close();
                     await saveAuthByCode(code);
-                    setAuthorized!(true);
+                    console.log("Authorized!");
+                    dispatch(setAuthorized(true));
                 }
             }
         } catch (error) {
@@ -55,9 +59,10 @@ async function authorizeWindow() {
         }
     // Check every 200ms
     }, 200);
+    return check_window;
 }
 
-async function saveAuthByCode(auth_code: string) {
+export async function saveAuthByCode(auth_code: string) {
     // Get the access and refresh tokens from the Google OAuth2 API
     const response = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -134,4 +139,10 @@ export async function getAuth(): Promise<string | null> {
         return await updateToken();
     }
     return null;
+}
+
+export async function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    console.log("Deauthorized");
 }

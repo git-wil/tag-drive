@@ -58,6 +58,8 @@ export const MIME_TYPE_TO_NAME: {[id: string]: string} = {
 export async function get_drive_list(): Promise<DriveListResponse> {
     return google_modular.drives.list({
         pageSize: 100,
+        fields: "drives(id, name, colorRgb)",
+        orderBy: "name, recency desc",
     })
 }
 
@@ -65,7 +67,8 @@ export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
     let response: FileListResponse;
     let files: GoogleFile[] = [];
     let pageToken: string | undefined = undefined;
-    while (true) {
+    
+    do {
         // Get 1000 files from the selected drive
         try {
             response = await google_modular.files.list({
@@ -80,23 +83,19 @@ export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
                 pageToken: pageToken || "",
             });
         } catch (err) {
-            alert(err.message)
+            console.log(err)
+            alert("Error getting files from Google Drive. Please try again later.");
             return [];
         }
-        //console.log(response)
         // Update the list of files
         if (!files) {
             files = response.files;
         } else {
             files.push(...response.files);
         }
-        // If there is a next page token
-        if (response.nextPageToken) {
-            pageToken = response.nextPageToken;
-        } else {
-            break;
-        }
-    }
+        // Update the page token
+        pageToken = response.nextPageToken;
+    } while (pageToken);
     return files;
     // return google_modular.files.list({
     //     corpora: drive_id == "" ? "user" : "drive",

@@ -185,7 +185,7 @@ export type GoogleFileModifier = {
 export type GoogleDrive = {
     id: string,
     name: string,
-    colorRgb: string,
+    colorRgb?: string,
     kind?: string,
     backgroundImageLink?: string,
     capabilities?: {
@@ -311,6 +311,18 @@ export type DriveListQuery = {
     pageToken?: string;
     q?: string;
     useDomainAdminAccess?: boolean;
+    fields?: string;
+    orderBy?:
+        | createdTime
+        | folder
+        | modifiedByMeTime
+        | modifiedTime
+        | name
+        | quotaBytesUsed
+        | recency
+        | sharedWithMeTime
+        | starred
+        | viewedByMeTime;
 }
 
 export type DriveListResponse = {
