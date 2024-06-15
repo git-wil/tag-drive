@@ -1,9 +1,9 @@
-import { useAppDispatch } from "../store/hooks";
+// import { useAppDispatch } from "../store/hooks";
 import { CLIENT_ID, CLIENT_SECRET } from "./credentials";
-import { setAuthorized } from "./files_slice";
+// import { setAuthorized } from "./files_slice";
 
 const SCOPE = "https://www.googleapis.com/auth/drive";
-export const REDIRECT_URI = "http://localhost:3000";
+export const REDIRECT_URI = "https://tag-drive.web.app";
 // Create the authorization url for Google OAuth2
 export const AUTH_URL = `https://accounts.google.com/o/oauth2/v2/auth?
 client_id=${encodeURIComponent(CLIENT_ID)}&
@@ -11,56 +11,58 @@ redirect_uri=${encodeURIComponent(REDIRECT_URI)}&
 response_type=code&
 scope=${encodeURIComponent(SCOPE)}&
 include_granted_scopes=true&
-prompt=select_account&
+prompt=consent&
 access_type=offline`.replace(/\s+/g, "");
 
 // Check if the user is authorized, if not, authorize them
-export async function authorize() {
-    if (await getAuth() === null) {
-        return AuthorizeWindow();
-    } else {
-        console.log("Already authorized");
-        return null;
-    }
-}
+// export async function authorize() {
+//     if (!(await getAuth())) {
+//         return AuthorizeWindow();
+//     } else {
+//         console.log("Already authorized");
+//         return null;
+//     }
+// }
 
-// Open a new window to authorize the user
-function AuthorizeWindow() {
-    const dispatch = useAppDispatch();
-    const new_window_width = 450;
-    const new_window_height = 600;
-    const new_window = window.open(
-        AUTH_URL, 
-        "", 
-        `width=${new_window_width},height=${new_window_height}`
-    )!;
-    new_window.moveTo(
-        new_window.opener.screen.width / 2 - new_window_width/2,
-        new_window.opener.screen.height / 2 - new_window_height/2
-    );
-    new_window.focus();
-    const check_window = setInterval(async () => {
-        try {
-            // Check if the window has been redirected to the redirect uri
-            if (!new_window.crossOriginIsolated) {
-                if (new_window.location.href.includes(REDIRECT_URI)) {
-                    // Get the authorization code from the url and save it
-                    clearInterval(check_window);
-                    const code = new_window.location.href.split("code=")[1].split("&")[0];
-                    new_window.close();
-                    await saveAuthByCode(code);
-                    console.log("Authorized!");
-                    dispatch(setAuthorized(true));
-                }
-            }
-        } catch (error) {
-            // Ignore any DOM errors, its just the google auth page not allowing
-            // the old window to access location.href
-        }
-    // Check every 200ms
-    }, 200);
-    return check_window;
-}
+// // Open a new window to authorize the user
+// function AuthorizeWindow() {
+//     const dispatch = useAppDispatch();
+//     const new_window_width = 450;
+//     const new_window_height = 600;
+//     const new_window = window.open(
+//         AUTH_URL, 
+//         "", 
+//         `width=${new_window_width},height=${new_window_height}`
+//     )!;
+//     new_window.moveTo(
+//         new_window.opener.screen.width / 2 - new_window_width/2,
+//         new_window.opener.screen.height / 2 - new_window_height/2
+//     );
+//     new_window.focus();
+//     const check_window = setInterval(async () => {
+//         try {
+//             // Check if the window has been redirected to the redirect uri
+//             if (!new_window.crossOriginIsolated) {
+//                 if (new_window.location.href.includes(REDIRECT_URI)) {
+//                     // Get the authorization code from the url and save it
+//                     clearInterval(check_window);
+//                     console.log("Window location")
+//                     const code = new_window.location.href.split("code=")[1].split("&")[0];
+//                     new_window.close();
+//                     console.log("Got code", code);
+//                     await saveAuthByCode(code);
+//                     console.log("Authorized! Code:", code);
+//                     dispatch(setAuthorized(true));
+//                 }
+//             }
+//         } catch (error) {
+//             // Ignore any DOM errors, its just the google auth page not allowing
+//             // the old window to access location.href
+//         }
+//     // Check every 200ms
+//     }, 200);
+//     return check_window;
+// }
 
 export async function saveAuthByCode(auth_code: string) {
     // Get the access and refresh tokens from the Google OAuth2 API
@@ -70,11 +72,12 @@ export async function saveAuthByCode(auth_code: string) {
             code: auth_code,
             client_id: CLIENT_ID,
             client_secret: CLIENT_SECRET,
-            redirect_uri: "http://localhost:3000",
+            redirect_uri: REDIRECT_URI,
             grant_type: "authorization_code",
         }),
     });
     const token = await response.json();
+    console.log("Token response", token);
     saveToken(token.access_token);
     saveRefreshToken(token.refresh_token);
     console.log("Token saved!", getToken());
@@ -104,7 +107,7 @@ function getRefreshToken(): string | null {
 async function updateToken(): Promise<string | null> {
     const refresh_token = getRefreshToken();
     // If the refresh token doesn't exist, return null
-    if (refresh_token === null) {
+    if (!refresh_token) {
         return null;
     }
     const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -124,7 +127,8 @@ async function updateToken(): Promise<string | null> {
 // General authorization function that accounts for refresh tokens
 export async function getAuth(): Promise<string | null> {
     const token = getToken();
-    if (token !== null) {
+    if (token) {
+        console.log("Token exists")
         //Check if token is valid using the Google Drive API
         try {
             const response = await fetch("https://oauth2.googleapis.com/tokeninfo?access_token=" + token, {

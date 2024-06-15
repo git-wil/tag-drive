@@ -1,5 +1,7 @@
 import resolveConfig from 'tailwindcss/resolveConfig';
-import tailwindConfig from '../../tailwind.config';
+// Import the tailwind config file
+// @ts-expect-error This file exists
+import tailwindConfig from '../../tailwind.config.js';
 
 const fullConfig = resolveConfig(tailwindConfig);
 
@@ -19,6 +21,7 @@ export function getCurrentBreakpoint(): "unknown" | "sm" | "md" | "lg" | "xl" | 
         window.innerWidth >= breakpointValue
         ) {
             biggestBreakpointValue = breakpointValue;
+            // @ts-expect-error Breakpoint will always be one of the valid values
             currentBreakpoint = breakpoint;
         }
     }

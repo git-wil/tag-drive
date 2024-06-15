@@ -1,6 +1,6 @@
 import google_modular from "./google_modular";
 import { DriveListResponse, FileListResponse, GoogleFileModifier, GoogleFile } from "./google_types";
-import { TagFile, TagList } from "../tag/tag_types";
+import { TagFile } from "../tag/tag_types";
 import { TAG_FILE_NAME } from "../assets/constants";
 
 export const ALLOWED_MIME_TYPES = [

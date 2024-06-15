@@ -5,11 +5,10 @@ import {
     Spinner,
 } from "@nextui-org/react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { useEffect, useState } from "react";
 
 
 import { get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
-import { FileCardContainer, FileSearchBox, TagModal, TagPanel, TagSearchBox } from "../tag/tag_display";
+import { FileCardContainer, FileSearchBox,TagPanel, TagSearchBox } from "../tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
@@ -65,6 +64,8 @@ TODO Editor:
 - consider making loading bar instead of spinner that is based on previous
   size of drive split into thousands that updates as every thousand loads
 
+TODO Hosting:
+- make pages /editor and /privacy work without needing to show /editor.html
 
 
 IMPORTANT

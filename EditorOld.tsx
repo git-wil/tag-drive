@@ -13,19 +13,19 @@ import {
     Spacer,
     Skeleton,
 } from "@nextui-org/react";
-import google_modular from "../drive/google_modular";
-import { GoogleFile } from "../drive/google_types";
-import { delete_tag_files_in_drive, get_drive_list, get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
-import { authorize } from "../drive/auth";
-import { FileCard, TagSearchBox } from "../tag/tag_display";
+import google_modular from "./src/drive/google_modular";
+import { GoogleFile } from "./src/drive/google_types";
+import { delete_tag_files_in_drive, get_drive_list, get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "./src/drive/google_helpers";
+import { authorize } from "./src/drive/auth";
+import { FileCard, TagSearchBox } from "./src/tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
-import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { clearSelectedFiles, getFiles, setFiles, setFilesLoaded } from "../drive/files_slice";
-import { setFileTags, setTagFileMetaData, setTagMetadata } from "../tag/tags_slice";
+import { useAppSelector, useAppDispatch } from "./src/store/hooks";
+import { clearSelectedFiles, getFiles, setFiles, setFilesLoaded } from "./src/drive/files_slice";
+import { setFileTags, setTagFileMetaData, setTagMetadata } from "./src/tag/tags_slice";
 // import { Sidebar } from "./sidebar";
-import { TagFile } from "../tag/tag_types";
+import { TagFile } from "./src/tag/tag_types";
 
 let initialized = false;
 
