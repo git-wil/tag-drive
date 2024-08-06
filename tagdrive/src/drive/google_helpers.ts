@@ -109,6 +109,54 @@ export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
     // })
 }
 
+
+export async function create_tag_sheet(drive_id: string): Promise<string> {
+    console.log("Creating tag sheet");
+    const fileMetadata: GoogleFileModifier = {
+        name: TAG_FILE_NAME,
+        parents: [drive_id || "root"],
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        appProperties: {
+            "tag-operator-version": "1.0.0",
+        },
+    };
+    const result = await google_modular.files.create_no_content(fileMetadata, {
+        supportsAllDrives: true,
+    });
+    const spreadsheetId = result.id;
+    
+    google_modular.spreadsheets.batchUpdate(spreadsheetId, {
+        requests: [
+            {
+                addSheet: {
+                    properties: {
+                        title: "Tags",
+                    },
+                },
+            },
+            {
+                addSheet: {
+                    properties: {
+                        title: "Files",
+                    },
+                },
+            },
+            {
+                deleteSheet: {
+                    sheetId: 0,
+                },
+            },
+        ],
+    });
+
+    return result.id;
+}
+
+
+
+
+
+
 async function create_tag_file(drive_id: string): Promise<string> {
     console.log("Creating tag file");
     const fileData = JSON.stringify({
@@ -132,8 +180,8 @@ async function create_tag_file(drive_id: string): Promise<string> {
     const result = await google_modular.files.create(fileData, fileMetadata, {
         supportsAllDrives: true,
     });
-    console.log("Created new tag file", await result);
-    return await result.id;
+    console.log("Created new tag file", result);
+    return result.id;
 }
 
 export async function get_tag_file_metadata(drive_id: string) {
@@ -188,21 +236,21 @@ export async function get_tag_file_data(tag_file_metadata: GoogleFile) {
 //     return file_data;
 // }
 
-export async function save_tag_file(tag_file: TagFile, tag_file_metadata: GoogleFile, drive_id: string): Promise<GoogleFile> {
+export async function save_tag_file(tag_file: TagFile, tag_file_metadata: GoogleFile, drive_id: string){
     // Check if the tag file exists
     if (!tag_file_metadata) {
         tag_file_metadata = await get_tag_file_metadata(drive_id);
     }
 
+    console.log("Saving tag file");
     const result = await google_modular.files.update(tag_file_metadata.id, JSON.stringify(tag_file), {
         mimeType: tag_file_metadata.mimeType,
         name: tag_file_metadata.name,
     }, {
         supportsAllDrives: true,
     });
-    console.log(await result);
-    
-    return await result;
+
+    console.log("Saved tag file", await result);
 }
 
 

@@ -3,7 +3,7 @@ import { CLIENT_ID, CLIENT_SECRET } from "./credentials";
 // import { setAuthorized } from "./files_slice";
 
 const SCOPE = "https://www.googleapis.com/auth/drive";
-export const REDIRECT_URI = "https://tag-drive.web.app";
+export const REDIRECT_URI = "http://localhost:3000"; // "https://tag-drive.web.app";
 // Create the authorization url for Google OAuth2
 export const AUTH_URL = `https://accounts.google.com/o/oauth2/v2/auth?
 client_id=${encodeURIComponent(CLIENT_ID)}&

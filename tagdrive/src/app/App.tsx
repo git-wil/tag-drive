@@ -88,15 +88,18 @@ function App() {
     console.log("Authorized", authorized, "Loaded", loaded, "Drives", drives);
     
     return (
-        <div className="w-screen h-screen flex justify-center items-center p-8">
+        <div className="w-screen h-dvh flex justify-center items-center p-8">
             <Card
                 isBlurred
                 shadow="sm"
-                className=" border-none bg-background/60 dark:bg-default-100/50 w-1/3 h-fit p-10"
+                className=" border-none bg-background/60 dark:bg-default-100/50 w-2/3 md:w-1/2 lg:w-1/3 h-fit p-10"
             >
                 <div className="flex flex-col gap-4 items-center justify-center">
-                    <h1 className="w-full text-5xl font-bold text-center">Tag Operator</h1>
-                    <Spacer y={2} />
+                    <div className="w-full flex flex-row items-center justify-center">
+                        <img src="../assets/tag_icon.svg" alt="Tagger Logo" className="w-12 h-12 mt-1" />
+                        <h1 className="ms-3 text-5xl font-bold">Tagger</h1>
+                    </div>
+                    <Spacer y={1} />
                     <div className="w-full">
                         <Button
                             color="danger"

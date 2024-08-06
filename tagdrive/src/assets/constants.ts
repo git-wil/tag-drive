@@ -7,7 +7,7 @@ export const file_columns = {
     "2xl": 6,
 }
 
-export const TAG_FILE_NAME = "TagOperatorOfficialTagList.json";
+export const TAG_FILE_NAME = "TagOperatorOfficialTagList";
 
 export const TAG_COLORS = [
   "red-800",

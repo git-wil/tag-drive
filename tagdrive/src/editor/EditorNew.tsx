@@ -7,7 +7,7 @@ import {
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 
 
-import { get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
+import { create_tag_sheet, get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
 import { FileCardContainer, FileSearchBox,TagPanel, TagSearchBox } from "../tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
@@ -56,23 +56,74 @@ TODO Editor:
 ✔ drag tag to delete
 ✔ tag search bar
 - consider modifying tag name
-- consider searching by parent name
+- consider searching by folder name
     - involves accepting folders in get_drive_files
 - consider searching by file type
 - consider stripping ending ' to make search surrounded by single quotes be exact
     - could also replace double quotes with single quotes
 - consider making loading bar instead of spinner that is based on previous
   size of drive split into thousands that updates as every thousand loads
+- more tag colors/customization (material icons?)
+
+
 
 TODO Hosting:
 - make pages /editor and /privacy work without needing to show /editor.html
 
+To update hosting:
+run `yarn build` in the tagdrive directory
+run `node_modules/.bin/firebase deploy --only hosting` in the tagdrive directory
 
-IMPORTANT
+
+
+
+TODO IMPORTANT
 ✔ delete tags
 ✔ switch drives
 ✔ log out
+- how to use
 - hover or click tag to see information (aliases, parent, children)
+- IMPLEMENT AUTO SAVE (action then inaction method)
+  - Action then inaction method:
+    - If modified is true, start timeout for 200ms
+    - Interrupt timeout if modified again
+    - after 200ms has passed, save tag file
+- Cached loading
+  - Every time tag file saves, save a copy to local storage
+  - When page loads, first load local storage copy
+  - Queue loading of files from google drive
+  - Disable tag sidebar until files are loaded
+  - Disable tag drag and drop until files are loaded (from sidebar and from file card)
+  - Show loading bar at bottom of screen
+  - 
+- Change from doc storage to sheet storage
+  ✔ get sheet api working
+  ✔ Create sheet if it doesn't exist
+      ✔ Tags sheet
+      ✔ Files sheet
+  - Get all data from both sheets
+  - Parse data into tag and file objects
+  - As edit
+      - If files get tags, modify locally stored file search string, etc.
+      - If tags get edited, update locally stored file search strings with that tag
+      - Add these to the modification queue
+      - Compile list of modifications...
+      - Tags by UID
+          - Modification type (edit, delete, create)
+          - If tag was created before last save, update the create, don't change to edit
+      - Files by GID
+          - Modification type (edit, delete, create) 
+  - On save,
+      - Tags
+      - Edit existing tags by named range in Tags sheet
+      - Create new tags by appending to Tags sheet and creating named ranges by UID
+      - Delete tags by deleting named range and then deleting row
+      - Files
+      - Create new files by appending to Files sheet with GID and tags/search strings
+      - Delete files that are marked for deletion (have no tags, or that are in sheet but no longer in google drive)
+
+
+
 
 
 
@@ -102,71 +153,96 @@ function EditorNew() {
     // const tag_file_id = useAppSelector(getTagFileID)
     // const tag_file_metadata = useAppSelector(getTagFileMetadata)
 
-    window.onbeforeunload = () => {
-        if (is_modified) {
-            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id)
-            for (let i = 0; i < 300000000; i++) {
-                // Wait for save
+    window.onbeforeunload = (e) => {
+        if (is_modified) {    
+            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then(() => {
+                console.log("Saved");
+                dispatch(setModified(false));
+            });
+            const event = e || window.event
+            if (event) {
+                event.returnValue = "You have unsaved changes. Are you sure you want to leave?"
             }
+            return "You have unsaved changes. Are you sure you want to leave?"
         }
-        // const event = e || window.event
-        // if (event) {
-        //     event.returnValue = "You have unsaved changes. Are you sure you want to leave?"
-        // }
-        // return "You have unsaved changes. Are you sure you want to leave?"
+        
     };
 
     if (!initialized) {
         dispatch(setLoadingModal({open: true, message: "Loading tag file..."}))
         // Load tags and files
-        get_tag_file_metadata(drive_id).then((metadata) => {
+        create_tag_sheet(drive_id).then((metadata) => {
             console.log("Got metadata", metadata)
-            dispatch(setTagFileMetaData(metadata));
-            dispatch(setLoadingModal({open: true, message: "Loading tag data..."}))
-            get_tag_file_data(metadata).then((data: TagFile) => {
-                console.log("Got data", data);
-                dispatch(setTagMetadata(data.TAG_DATA));
-                dispatch(setFileTags(data.FILE_DATA));
-                dispatch(setLoadingModal({open: true, message: "Loading files..."}))
-                get_file_list(drive_id).then((files) => {
-                    dispatch(setFiles(files));
-                    dispatch(setQueriedFiles(files));
-                    dispatch(setQueriedTags(Object.values(data.TAG_DATA)));
-                    dispatch(setFilesLoaded(true));
-                    dispatch(setLoadingModal({open: false, message: "Done"}))
-                });
-            });
         });
+        // get_tag_file_metadata(drive_id).then((metadata) => {
+        //     console.log("Got metadata", metadata)
+        //     dispatch(setTagFileMetaData(metadata));
+        //     dispatch(setLoadingModal({open: true, message: "Loading tag data..."}))
+        //     get_tag_file_data(metadata).then((data: TagFile) => {
+        //         console.log("Got data", data);
+        //         dispatch(setTagMetadata(data.TAG_DATA));
+        //         dispatch(setFileTags(data.FILE_DATA));
+        //         dispatch(setLoadingModal({open: true, message: "Loading files..."}))
+        //         get_file_list(drive_id).then((files) => {
+        //             dispatch(setFiles(files));
+        //             dispatch(setQueriedFiles(files));
+        //             dispatch(setQueriedTags(Object.values(data.TAG_DATA)));
+        //             dispatch(setFilesLoaded(true));
+        //             dispatch(setLoadingModal({open: false, message: "Done"}))
+        //         });
+        //     });
+        // });
         initialized = true;
     }
-    const ref = useHotkeys("ctrl+s", (_, handler) => {
+
+    const SHORTCUT_KEYS = [
+        "meta+s",
+        "ctrl+s",
+        "/"
+    ]
+
+    const ref = useHotkeys(SHORTCUT_KEYS, (_, handler) => {
         if (!handler || !handler.keys) return;
-        console.log("Saving");
-        dispatch(setLoadingModal({open: true, message: "Saving..."}));
-        // Save tag file to google drive
-        if (is_modified) {
-            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
-                console.log("Saved", result);
-                dispatch(setLoadingModal({open: false, message: "Saving..."}));
-                dispatch(setModified(false));
-            });
+
+        const shortcut = handler.keys.join("");
+        
+        if (shortcut == "/") {
+            document.getElementById("fileSearchBox")?.focus();
+        }
+        if (shortcut == "s" && (handler.meta || handler.ctrl)) {
+            console.log("Saving");
+            dispatch(setLoadingModal({open: true, message: "Saving..."}));
+            // Save tag file to google drive
+            if (is_modified) {
+                save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
+                    console.log("Saved", result);
+                    dispatch(setLoadingModal({open: false, message: "Saving..."}));
+                    dispatch(setModified(false));
+                });
+            }
         }
     }, { preventDefault: true })
 
     return (
         <>  
             {/* @ts-expect-error This is a valid ref, its from the useHotkeys hook and is designed to be used this way */}
-            <div className="align-middle justify-center h-screen p-8" ref={ref} tabIndex={-1}
+            <div className="align-middle justify-center h-dvh p-8" ref={ref} tabIndex={-1}
             onClick={()=>{
+                // Clear selected files when clicking outside of the file panel
                 dispatch(clearSelectedFiles());
             }}
             >
                 <AnimatePresence>
-                    <motion.div
+                    {loading_modal.message && <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: (loading_modal.open) ? 1 : 0 }}
                         exit={{ opacity: 0 }}
-                        className="shadow-md shadow-primary-50 absolute m-auto left-0 right-0 top-0 bottom-0 w-1/4 z-50 h-fit flex items-center justify-center rounded-2xl"
+                        onAnimationComplete={() => {
+                            if (!loading_modal.open) {
+                                dispatch(setLoadingModal({open: false, message: ""}));
+                            }
+                        }}
+                        className="shadow-md shadow-primary-50 absolute m-auto left-0 right-0 top-0 bottom-0 w-3/4 sm:w-2/3 md:w-1/2 lg:w-1/3 xl:w-1/4 z-50 h-fit flex items-center justify-center rounded-2xl"
                     >
                         <div
                             className="h-full w-full p-5 flex items-center justify-center rounded-2xl bg-primary-900/95"
@@ -174,7 +250,7 @@ function EditorNew() {
                         <h1 className="text-2xl text-primary pe-5 select-none">{loading_modal.message}</h1>
                         <Spinner size="lg" color="primary" />
                         </div>
-                    </motion.div>
+                    </motion.div>}
                 </AnimatePresence>
                 <Card
                     isBlurred
@@ -182,7 +258,7 @@ function EditorNew() {
                     fullWidth
                     className="bg-background/60 h-full p-3 overflow-visible"
                 >
-                    <div className="grid grid-rows-6 grid-cols-1 sm:grid-rows-none sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-4 2xl:grid-cols-5 gap-2 items-center justify-center h-full w-full">
+                    <div className="grid grid-rows-5 grid-cols-1 sm:grid-rows-none sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-4 2xl:grid-cols-5 gap-2 items-center justify-center h-full w-full">
                         <div
                         id="control-panel"
                         onDragEnter={(e) => {
@@ -237,7 +313,7 @@ function EditorNew() {
                         </div>
                         <div
                         id="main-panel"
-                        className="flex flex-col gap-2 overflow-auto row-span-4 sm:row-auto sm:col-span-3 md:col-span-4 lg:col-span-5 xl:col-span-3 2xl:col-span-4 w-full h-full">
+                        className="flex flex-col gap-2 overflow-auto row-span-3 sm:row-auto sm:col-span-3 md:col-span-4 lg:col-span-5 xl:col-span-3 2xl:col-span-4 w-full h-full">
                             <div className="w-full h-fit flex-none">
                                 <FileSearchBox/>
                             </div>

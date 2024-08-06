@@ -44,6 +44,7 @@ export function FileSearchBox() {
             isClearable
             labelPlacement="inside"
             isDisabled={!files_loaded}
+            id="fileSearchBox"
             classNames={{
                 base: "h-full",
                 mainWrapper: "h-full",
@@ -285,7 +286,7 @@ export function DraggableTagElement(props: {tag_id: TagID, dragging_type?: "tag"
     const tag_id = props.tag_id;
     const parent_file_id = props.file_index;
     const tag = useAppSelector(getTagByID(tag_id));
-    const files = useAppSelector(getFiles);
+    const queried_files = useAppSelector(getQueriedFiles);
     const dragged_over = useAppSelector(getDraggedOver);
     const selected_files = useAppSelector(getSelectedFiles);
     // const selected_files = useAppSelector(getSelectedFiles);
@@ -328,7 +329,7 @@ export function DraggableTagElement(props: {tag_id: TagID, dragging_type?: "tag"
             onDragEnd={() => {
                 if (dragging_type == "tag") {
                     dragged_over.forEach((file_index: number) => {
-                        dispatch(addTagToFileID({tag_id: tag_id, file_id: files[file_index].id}))
+                        dispatch(addTagToFileID({tag_id: tag_id, file_id: queried_files[file_index].id}))
                     });
                     // TODO: Consider clearing selected files after drag?
                     // if (dragged_over == selected_files) {
@@ -336,12 +337,12 @@ export function DraggableTagElement(props: {tag_id: TagID, dragging_type?: "tag"
                     // }
                     dispatch(resetDraggedOver());
                 } else if (dragging_type == "file" && parent_file_id !== undefined) {
-                    const file = files[parent_file_id];
+                    const file = queried_files[parent_file_id];
                     // If the file is selected, remove the tag from all selected files
                     if (selected_files.includes(parent_file_id)) {
                         console.log("Removing tag", tag_id, "from all selected files")
                         selected_files.forEach((file_index) => {
-                            dispatch(removeTagFromFileID({tag_id: tag_id, file_id: files[file_index].id}));
+                            dispatch(removeTagFromFileID({tag_id: tag_id, file_id: queried_files[file_index].id}));
                         });
                     } else {
                         // Delete tag from parent file only
@@ -400,6 +401,7 @@ export function FileCardContainer() {
         "ctrl+a",
         "enter",
         "escape",
+        "/",
     ]
 
     const screen_break = getCurrentBreakpoint();
@@ -409,6 +411,9 @@ export function FileCardContainer() {
         if (!handler || !handler.keys) return;
         const shortcut = handler.keys.join("");
         
+        if (shortcut == "/") {
+            document.getElementById("fileSearchBox")?.focus();
+        }
         if (shortcut == "a" && handler.ctrl) {
             dispatch(setSelectedFiles([...Array(queried_files.length).keys()]));
         }
@@ -521,10 +526,6 @@ export function FileCard(props: {file: GoogleFile | null, index: number}) {
     const file_tag_ids = useAppSelector(getFileTagsByID(file?.id || "")) || {tags: []};
 
     const files_loaded = useAppSelector(getFilesLoaded);
-
-    if (is_selected) {
-        console.log(file_tag_ids)
-    }
 
 
     return (
