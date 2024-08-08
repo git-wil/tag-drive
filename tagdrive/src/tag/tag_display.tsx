@@ -18,9 +18,9 @@ import {
 } from "@nextui-org/react";
 import { GoogleFile } from "../drive/google_types.js";
 import { Tag, TagID } from "./tag_types.js";
-import { addTagToFileID, deleteTagMetadata, getFileTags, getFileTagsByID, getModifyingTagData, getQueriedTags, getTagByID, getTagMetadata, modifyTagMetadata, removeTagFromFileID, resetQueriedTags, setModifyingTagData, setQueriedTags } from "./tags_slice.js";
+import { addTagToFileID, deleteTagMetadata, getFileTags, getFileTagsByID, getModifyingTagData, getQueriedTags, getTagByID, getTagMetadata, modifyTagMetadata, removeTagFromFileID, resetQueriedTags, setModifyingTagData, setQueriedTags } from "../store/slice_tags.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.js";
-import { appendSelectedFile, appendSelectedFilesBetween, clearSelectedFiles, getDraggedOver, getDragging, getFiles, getFilesLoaded, getQueriedFiles, getSelectedFiles, getVisibleFiles, isSelectedFile, resetDraggedOver, resetDragging, setDraggedOver, setDragging, setQueriedFiles, setSelectedFiles, toggleSelectedFile } from "../drive/files_slice.js";
+import { appendSelectedFile, appendSelectedFilesBetween, clearSelectedFiles, getDraggedOver, getDragging, getFiles, getFilesLoaded, getQueriedFiles, getSelectedFiles, getVisibleFiles, isSelectedFile, resetDraggedOver, resetDragging, setDraggedOver, setDragging, setQueriedFiles, setSelectedFiles, toggleSelectedFile } from "../store/slice_files.ts";
 import { useState } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";

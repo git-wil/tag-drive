@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
-import { RootState } from '../store/store';
-import { GoogleFile } from './google_types';
+import { RootState } from './store';
+import { GoogleFile } from '../drive/google_types';
 
 const initial_files: GoogleFile[] = Array(30).fill(null as GoogleFile | null)
 

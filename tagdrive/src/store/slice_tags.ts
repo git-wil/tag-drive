@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
-import { RootState } from '../store/store.js';
-import { FileID, FileTagData, Tag, TagID, TagList } from "./tag_types.js";
+import { RootState } from './store.js';
+import { Tag, TagID, TagList } from '../tag/tag_types.ts';
+import { FileID, FileTagData } from '../file/file_types.ts';
 import { GoogleFile } from '../drive/google_types.js';
 
 
@@ -129,7 +130,7 @@ export const tagsSlice = createSlice({
                 // is harmless.
                 if (file_data.search_string.includes(tag_id)) {
                     // Remove the tag from the file
-                    file_data.tags = file_data.tags.filter((id) => id !== tag_id);
+                    file_data.tags = file_data.tags.filter((id: TagID) => id !== tag_id);
                     if (file_data.tags.length === 0) {
                         delete state.file_tags[file_id];
                         return;
@@ -188,7 +189,7 @@ export const tagsSlice = createSlice({
             }
             // Remove the tag from the file
             console.log("Removing tag", tag_id, "from file", file_id, "tags", state.file_tags[file_id].tags)
-            state.file_tags[file_id].tags = state.file_tags[file_id].tags.filter((id) => id !== tag_id);
+            state.file_tags[file_id].tags = state.file_tags[file_id].tags.filter((id: TagID) => id !== tag_id);
             // If the file now has no tags, remove it from the file_tags object
             if (state.file_tags[file_id].tags.length === 0) {
                 delete state.file_tags[file_id];

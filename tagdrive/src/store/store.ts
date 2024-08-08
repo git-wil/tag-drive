@@ -1,15 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit'
-import filesReducer from '../drive/files_slice'
-import tagsReducer from '../tag/tags_slice'
-import typedTagsReducer from '../tag/tag_search_slice'
+import filesReducer from './slice_files.ts'
+import tagsReducer from './slice_tags.ts'
 
 export const store = configureStore({
     reducer: {
         // Add reducers here
         files: filesReducer,
         tags: tagsReducer,
-        typedTags: typedTagsReducer,
-        // selectedFile:
     }
   })
   
