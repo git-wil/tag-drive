@@ -7,16 +7,16 @@ import {
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 
 
-import { create_tag_sheet, get_file_list, get_tag_file_data, get_tag_file_metadata, save_tag_file } from "../drive/google_helpers";
+import { create_tag_sheet, value_range_factory, get_file_list, get_tag_file_data, get_tag_file_metadata, get_tag_sheet_data, get_tag_sheet_id, parse_file_data_from_sheet_values, parse_tag_data_from_sheet_values, parse_values_from_spreadsheet, save_tag_file, update_tag_sheet_values, create_tag_rows, generate_tag_ids } from "../drive/google_helpers";
 import { FileCardContainer, FileSearchBox,TagPanel, TagSearchBox } from "../tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
-import { clearSelectedFiles, getDragging, getFilesLoaded, getLoadingModal, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setLoadingModal, setQueriedFiles, setVisibleFiles } from "../drive/files_slice";
-import { getFileTags, getTagFileMetadata, getTagMetadata, getModified, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata, setModified } from "../tag/tags_slice";
-import { TagFile } from "../tag/tag_types";
+import { clearSelectedFiles, getDragging, getFilesLoaded, getLoadingModal, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setLoadingModal, setQueriedFiles, setVisibleFiles } from "../store/slice_files.ts";
+import { getFileTags, getTagFileMetadata, getTagMetadata, getModified, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata, setModified } from "../store/slice_tags.ts";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AnimatePresence, motion } from "framer-motion";
+import { TagList } from "../tag/tag_types";
 
 
 let initialized = false;
@@ -101,8 +101,8 @@ TODO IMPORTANT
   ✔ Create sheet if it doesn't exist
       ✔ Tags sheet
       ✔ Files sheet
-  - Get all data from both sheets
-  - Parse data into tag and file objects
+  ✔ Get all data from both sheets
+  ✔ Parse data into tag and file objects
   - As edit
       - If files get tags, modify locally stored file search string, etc.
       - If tags get edited, update locally stored file search strings with that tag
@@ -110,17 +110,17 @@ TODO IMPORTANT
       - Compile list of modifications...
       - Tags by UID
           - Modification type (edit, delete, create)
-          - If tag was created before last save, update the create, don't change to edit
+          - If tag was created before last save, change the information in the "create" mod, don't add an edit mod on top
       - Files by GID
           - Modification type (edit, delete, create) 
   - On save,
       - Tags
-      - Edit existing tags by named range in Tags sheet
-      - Create new tags by appending to Tags sheet and creating named ranges by UID
-      - Delete tags by deleting named range and then deleting row
+        - Edit existing tags by named range in Tags sheet
+        ✔ Create new tags by appending to Tags sheet and creating named ranges by UID
+        - Delete tags by deleting named range and then deleting row
       - Files
-      - Create new files by appending to Files sheet with GID and tags/search strings
-      - Delete files that are marked for deletion (have no tags, or that are in sheet but no longer in google drive)
+        - Create new files by appending to Files sheet with GID and tags/search strings
+        - Delete files that are marked for deletion (have no tags, or that are in sheet but no longer in google drive)
 
 
 
@@ -171,8 +171,39 @@ function EditorNew() {
     if (!initialized) {
         dispatch(setLoadingModal({open: true, message: "Loading tag file..."}))
         // Load tags and files
-        create_tag_sheet(drive_id).then((metadata) => {
-            console.log("Got metadata", metadata)
+        // create_tag_sheet(drive_id).then((sheet_id) => {
+        //     console.log("Got tag sheet id", sheet_id)
+        // });
+        get_tag_sheet_id(drive_id).then((sheet_id) => {
+            get_tag_sheet_data(sheet_id).then((sheet) => {
+                console.log("Got tag sheet data", sheet);
+                const data = parse_values_from_spreadsheet(sheet);
+                console.log("Tag data:", parse_tag_data_from_sheet_values(data));
+                console.log("File data:", parse_file_data_from_sheet_values(data));
+                // const uuids = generate_tag_ids(2);
+                // const test_tags: TagList = {};
+                // test_tags[uuids[0]] = {
+                //         id: uuids[0],
+                //         name: "This Tag",
+                //         color: "red-800",
+                //         icon: "",
+                //         aliases: [],
+                //         parent: "",
+                //         children: []
+                //     },
+                // test_tags[uuids[1]] = {
+                //     id: uuids[1],
+                //     name: "Another tag",
+                //     color: "cyan-800",
+                //     icon: "tagger",
+                //     aliases: ["Alias 1", "Alias 2"],
+                //     parent: "0",
+                //     children: ["2", "1"]
+                // }
+                // create_tag_rows(sheet, test_tags).then((result) => {
+                //     console.log("Created tags", result);
+                // });
+            });
         });
         // get_tag_file_metadata(drive_id).then((metadata) => {
         //     console.log("Got metadata", metadata)
@@ -303,9 +334,6 @@ function EditorNew() {
                                     Create New File
                                 </Button>
                             </div>
-                            {/* <div
-                            id="tag-search-bar"
-                            className="w-full h-[60px] flex-none bg-primary-300 rounded-lg"></div> */}
                             <TagSearchBox/>
                             <div className="w-full h-full flex-1 overflow-auto">
                                 <TagPanel/>
@@ -335,16 +363,6 @@ function EditorNew() {
                             </div>
                         </div>
                     </div>
-                    {/* <div className="grid grid-cols-12 gap-2 items-center justify-center h-full w-full">
-                        <div 
-                            id="left-panel"
-                            className="col-span-6 md:col-span-4 lg:col-span-3 xl:col-span-2 grid grid-cols-2 gap-2 h-full w-full bg-default-200">
-                        </div>
-                        <div 
-                            id="right-panel"
-                            className="col-span-6 md:col-span-8 lg:col-span-9 xl:col-span-10 w-full h-full bg-default-100">
-                        </div>
-                    </div> */}
                 </Card>
             </div>
         </>

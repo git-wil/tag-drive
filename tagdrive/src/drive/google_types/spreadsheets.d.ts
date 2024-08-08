@@ -1,5 +1,5 @@
 export type Spreadsheet = {
-    spreadsheetID: string,
+    spreadsheetId: string,
     properties: SpreadsheetProperties,
     sheets: Sheet[],
     namedRanges: NamedRange[],
@@ -7,6 +7,57 @@ export type Spreadsheet = {
     developerMetadata: DeveloperMetadata[],
     dataSources: DataSource[],
     dataSourceSchedules: DataSourceRefreshSchedule[]
+}
+
+export type Sheet = {
+    properties: SheetProperties,
+    data: GridData[],
+    merges: GridRange[],
+    conditionalFormats: ConditionalFormat[],
+    filterViews: FilterView[],
+    protectedRanges: ProtectedRange[],
+    basicFilter: BasicFilter,
+    charts: EmbeddedChart[],
+    bandedRanges: BandedRange[],
+    developerMetadata: DeveloperMetadata[],
+    rowGroups: RowGroup[],
+    columnGroups: ColumnGroup[],
+    slicers: Slicer[],
+}
+
+export type GridData = {
+    startRow: number,
+    startColumn: number,
+    rowData: RowData[]
+    rowMetadata: RowMetadata[]
+    columnMetadata: ColumnMetadata[]
+}
+
+export type RowData = {
+    values: CellData[]
+}
+
+export type ParsedSpreadsheetValues = {
+    [sheet_id: number]: {
+        [query_id: number]: {
+            [row_id: number]: string[], // values
+        }
+    }
+}
+
+export type CellData = {
+    formattedValue: string, // The only field that matters
+    userEnteredValue: ExtendedValue,
+    effectiveValue: ExtendedValue,
+    userEnteredFormat: CellFormat,
+    effectiveFormat: CellFormat,
+    hyperlink: string,
+    note: string,
+    textFormatRuns: TextFormatRun[],
+    dataValidation: DataValidationRule,
+    pivotTable: PivotTable,
+    dataSourceTable: DataSourceTable,
+    dataSourceFormula: DataSourceFormula,
 }
 
 
@@ -76,6 +127,11 @@ export type batchUpdateResponseBody = {
     updatedSpreadsheet: Spreadsheet
 }
 
+export type getSpreadsheetQuery = {
+    includeGridData: boolean
+    ranges?: string[],
+}
+
 export type GridRange = {
   sheetId: number,
   startRowIndex: number,
@@ -85,16 +141,12 @@ export type GridRange = {
 }
 
 export type NamedRange = { 
-    namedRangeId: string,
+    namedRangeId?: string,
     name: string,
     range: GridRange
 }
 
-enum Dimension {
-    DIMENSION_UNSPECIFIED = "DIMENSION_UNSPECIFIED",
-    ROWS = "ROWS",
-    COLUMNS = "COLUMNS"
-}
+export type Dimension = "DIMENSION_UNSPECIFIED" | "ROWS" | "COLUMNS";
 
 export type DimensionRange = {
     sheetId: number,
@@ -120,6 +172,16 @@ export namespace values {
         majorDimension: Dimension,
     }
     export type getResponseBody = ValueRange;
+
+    export type batchGetQuery = {
+        ranges: string[],
+        majorDimension: Dimension,
+    }
+
+    export type batchGetResponseBody = {
+        spreadsheetId: string,
+        valueRanges: ValueRange[]
+    }
     
     export type appendRequestBody = {
         valueInputOption: "INPUT_VALUE_OPTION_UNSPECIFIED" | "RAW" | "USER_ENTERED";

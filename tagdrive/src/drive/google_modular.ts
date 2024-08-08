@@ -217,6 +217,19 @@ class spreadsheets_values_class {
         return await response.json();
     }
 
+    static async batchGet(spreadsheetId: string, params: SheetTypes.values.batchGetQuery): Promise<SheetTypes.values.batchGetResponseBody> {
+        const query = "&majorDimension=" + params.majorDimension + "&ranges=" + "[" + params.ranges.map(range => `"${range}"`).join(",") + "]";
+        console.log("batch get Query", query);
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        headers.append("X-goog-api-key", API_KEY);
+        const response = await fetch(spreadsheets_values_class.#base_url + `/${spreadsheetId}/values:batchGet` + query, {
+            method: "GET",
+            headers,
+        });
+        return await response.json();
+    }
+
     static async append(spreadsheet_id: string, range: string, body: SheetTypes.values.appendRequestBody) {
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
@@ -246,6 +259,19 @@ class spreadsheets_class {
     static #base_url = "https://sheets.googleapis.com/v4/spreadsheets";
     
     static values = spreadsheets_values_class;
+
+    static async get(spreadsheetId: string, params: SheetTypes.getSpreadsheetQuery): Promise<SheetTypes.Spreadsheet> {
+        const query = "?includeGridData=" + params.includeGridData + params.ranges?.map(range => "&ranges=" + range).join("");
+        const headers = new Headers();
+        headers.append("Authorization", `Bearer ${await getAuth()}`);
+        headers.append("X-goog-api-key", API_KEY);
+        const response = await fetch(spreadsheets_class.#base_url + `/${spreadsheetId}` + query, {
+            method: "GET",
+            headers,
+        });
+        return await response.json();
+    }
+
     static async batchUpdate(spreadsheetId: string, body: SheetTypes.batchUpdateRequestBody): Promise<SheetTypes.batchUpdateResponseBody> {
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
