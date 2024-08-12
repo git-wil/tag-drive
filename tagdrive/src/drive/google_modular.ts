@@ -242,7 +242,7 @@ class spreadsheets_values_class {
         console.log("Append values response:", await response.json());
     }
 
-    static async batchUpdate(spreadsheet_id: string, body: SheetTypes.values.batchUpdateRequestBody) {
+    static async batchUpdate(spreadsheet_id: string, body: SheetTypes.values.batchUpdateRequestBody): Promise<SheetTypes.values.batchUpdateResponseBody> {
         const headers = new Headers();
         headers.append("Authorization", `Bearer ${await getAuth()}`);
         headers.append("X-goog-api-key", API_KEY);
@@ -251,7 +251,7 @@ class spreadsheets_values_class {
             headers,
             body: JSON.stringify(body),
         });
-        console.log("Batch update values response:", await response.json());
+        return response.json();
     }
 }
 

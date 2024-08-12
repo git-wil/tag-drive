@@ -49,15 +49,23 @@ export type CellData = {
     formattedValue: string, // The only field that matters
     userEnteredValue: ExtendedValue,
     effectiveValue: ExtendedValue,
-    userEnteredFormat: CellFormat,
-    effectiveFormat: CellFormat,
-    hyperlink: string,
-    note: string,
-    textFormatRuns: TextFormatRun[],
-    dataValidation: DataValidationRule,
-    pivotTable: PivotTable,
-    dataSourceTable: DataSourceTable,
-    dataSourceFormula: DataSourceFormula,
+    userEnteredFormat?: CellFormat,
+    effectiveFormat?: CellFormat,
+    hyperlink?: string,
+    note?: string,
+    textFormatRuns?: TextFormatRun[],
+    dataValidation?: DataValidationRule,
+    pivotTable?: PivotTable,
+    dataSourceTable?: DataSourceTable,
+    dataSourceFormula?: DataSourceFormula,
+}
+
+export type ExtendedValue = {
+    stringValue?: string,
+    numberValue?: number,
+    boolValue?: boolean,
+    formulaValue?: string,
+    errorValue?: ErrorValue,
 }
 
 
@@ -83,7 +91,7 @@ export type SheetProperties = {
     dataSourceSheetProperties?: unknown
 }
 
-namespace UpdateRequests {
+export namespace UpdateRequests {
     export type addSheetRequest = {
         properties: SheetProperties
     }
@@ -98,6 +106,16 @@ namespace UpdateRequests {
     }
     export type deleteDimensionRequest = {
         range: DimensionRange
+    }
+    export type appendDimensionRequest = {
+        sheetId: number,
+        dimension: Dimension,
+        length: number
+    }
+    export type appendCellsRequest = {
+        sheetId: number,
+        rows: RowData[],
+        fields: string
     }
 }
 
@@ -161,11 +179,29 @@ export type ValueRange = {
     values: string[][]
 }
 
+export type UpdateValuesResponse = {
+    spreadsheetId: string,
+    updatedRange: string,
+    updatedRows: number,
+    updatedColumns: number,
+    updatedCells: number,
+    updatedData: ValueRange
+}
+
 
 export namespace values {
     export type batchUpdateRequestBody = {
         valueInputOption: "INPUT_VALUE_OPTION_UNSPECIFIED" | "RAW" | "USER_ENTERED",
         data: ValueRange[],
+    }
+
+    export type batchUpdateResponseBody = {
+        spreadsheetId: string,
+        totalUpdatedCells: number,
+        totalUpdatedColumns: number,
+        totalUpdatedRows: number,
+        totalUpdatedSheets: number,
+        responses: UpdateValuesResponse[]
     }
 
     export type getRequestBody = {
@@ -198,3 +234,10 @@ export namespace values {
 // spreadsheets.values batchUpdate
 // spreadsheets.values get
 // spreadsheets.values append
+
+export type GenericTagOperatorData = {
+    // Could be TagList or FileTagData
+    [id: string]: {
+        [value: string]: string | string[]
+    }
+}

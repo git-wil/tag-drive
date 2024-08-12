@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
 import { RootState } from './store.js';
 import { Tag, TagID, TagList } from '../tag/tag_types.ts';
-import { FileID, FileTagData } from '../file/file_types.ts';
+import { FileID, FileList } from '../file/file_types.ts';
 import { GoogleFile } from '../drive/google_types.js';
 
 
@@ -15,7 +15,7 @@ export const tagsSlice = createSlice({
         tag_metadata: {} as TagList,
         tag_file_id: "",
         tag_file_metadata: {} as GoogleFile,
-        file_tags: {} as FileTagData,
+        file_tags: {} as FileList,
         queried_tags: initial_tags,
         modifying_tag_data: {
             name: "",

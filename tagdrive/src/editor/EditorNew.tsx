@@ -7,7 +7,7 @@ import {
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 
 
-import { create_tag_sheet, value_range_factory, get_file_list, get_tag_file_data, get_tag_file_metadata, get_tag_sheet_data, get_tag_sheet_id, parse_file_data_from_sheet_values, parse_tag_data_from_sheet_values, parse_values_from_spreadsheet, save_tag_file, update_tag_sheet_values, create_tag_rows, generate_tag_ids } from "../drive/google_helpers";
+import { create_tag_sheet, get_file_list, get_tag_sheet_data, get_tag_sheet_id, parse_file_data_from_sheet_values, parse_tag_data_from_sheet_values, parse_values_from_spreadsheet, update_raw_sheet_values, generate_tag_ids, delete_named_rows, apply_tag_modifications, apply_file_modifications, generate_file_ids } from "../drive/google_helpers";
 import { FileCardContainer, FileSearchBox,TagPanel, TagSearchBox } from "../tag/tag_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
@@ -16,7 +16,8 @@ import { clearSelectedFiles, getDragging, getFilesLoaded, getLoadingModal, getQu
 import { getFileTags, getTagFileMetadata, getTagMetadata, getModified, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata, setModified } from "../store/slice_tags.ts";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AnimatePresence, motion } from "framer-motion";
-import { TagList } from "../tag/tag_types";
+import { TagList, TagModification, TagModificationType } from "../tag/tag_types";
+import { FileModification, FileModificationType } from "../file/file_types.ts";
 
 
 let initialized = false;
@@ -107,19 +108,19 @@ TODO IMPORTANT
       - If files get tags, modify locally stored file search string, etc.
       - If tags get edited, update locally stored file search strings with that tag
       - Add these to the modification queue
-      - Compile list of modifications...
-      - Tags by UID
-          - Modification type (edit, delete, create)
+      ✔ Compile list of modifications...
+      ✔ Tags by UID
+          ✔ Modification type (edit, delete, create)
           - If tag was created before last save, change the information in the "create" mod, don't add an edit mod on top
-      - Files by GID
-          - Modification type (edit, delete, create) 
+      ✔ Files by GID
+          ✔ Modification type (edit, delete, create) 
   - On save,
       - Tags
-        - Edit existing tags by named range in Tags sheet
+        ✔ Edit existing tags by named range in Tags sheet
         ✔ Create new tags by appending to Tags sheet and creating named ranges by UID
-        - Delete tags by deleting named range and then deleting row
+        ✔ Delete tags by deleting named range and then deleting row
       - Files
-        - Create new files by appending to Files sheet with GID and tags/search strings
+        ✔ Create new files by appending to Files sheet with GID and tags/search strings
         - Delete files that are marked for deletion (have no tags, or that are in sheet but no longer in google drive)
 
 
@@ -155,10 +156,10 @@ function EditorNew() {
 
     window.onbeforeunload = (e) => {
         if (is_modified) {    
-            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then(() => {
-                console.log("Saved");
-                dispatch(setModified(false));
-            });
+            // save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then(() => {
+            //     console.log("Saved");
+            //     dispatch(setModified(false));
+            // });
             const event = e || window.event
             if (event) {
                 event.returnValue = "You have unsaved changes. Are you sure you want to leave?"
@@ -175,34 +176,145 @@ function EditorNew() {
         //     console.log("Got tag sheet id", sheet_id)
         // });
         get_tag_sheet_id(drive_id).then((sheet_id) => {
-            get_tag_sheet_data(sheet_id).then((sheet) => {
-                console.log("Got tag sheet data", sheet);
-                const data = parse_values_from_spreadsheet(sheet);
-                console.log("Tag data:", parse_tag_data_from_sheet_values(data));
-                console.log("File data:", parse_file_data_from_sheet_values(data));
+            get_tag_sheet_data(sheet_id).then((spreadsheet) => {
+                console.log("Got tag sheet data", spreadsheet);
+                const data = parse_values_from_spreadsheet(spreadsheet);
+                const tag_data = parse_tag_data_from_sheet_values(data);
+                console.log("Tag data:", tag_data);
+                const file_data = parse_file_data_from_sheet_values(data);
+                console.log("File data:", file_data);
+                // Create some sample FileModifications
+                // const file_mods: FileModification[] = [];
+                // const uuids = generate_file_ids(2);
+                // const test_g_ids = generate_tag_ids(2);
+                
+                // const alternate_gids = Object.values(file_data).map((file) => file.gid).slice(2, 4)
+                // for (let i = 0; i < alternate_gids.length; i++) {
+                //     file_mods.push({
+                //         type: FileModificationType.DELETE,
+                //         file: {
+                //             sheet_id: file_data[alternate_gids[i]].sheet_id,
+                //             gid: alternate_gids[i],
+                //             tags: [],
+                //             search_string: `Test File ${i} (DELETED!)`
+                //         }
+                //     });
+                // }
+                // for (let i = 0; i < uuids.length; i++) {
+                //     file_mods.push({
+                //         type: FileModificationType.CREATE,
+                //         file: {
+                //             sheet_id: uuids[i],
+                //             gid: test_g_ids[i],
+                //             tags: ["Test"],
+                //             search_string: `Test File ${i} new!`
+                //         }
+                //     });
+                // }
+                // const existing_gids = Object.values(file_data).map((file) => file.gid).slice(0, 2);
+                // for (let i = 0; i < existing_gids.length; i++) {
+                //     file_mods.push({
+                //         type: FileModificationType.UPDATE,
+                //         file: {
+                //             sheet_id: file_data[existing_gids[i]].sheet_id,
+                //             gid: existing_gids[i],
+                //             tags: ["Test"],
+                //             search_string: `Test File ${i} (UPDATED!)`
+                //         }
+                //     });
+                // }
+                // console.log("File modifications", file_mods);
+                // apply_file_modifications(spreadsheet, file_mods).then((result) => {
+                //     console.log("New spreadsheet", result);
+                // });
+                // Create some sample TagModifications
+                // const tag_mods: TagModification[] = [];
+                // const uuids = generate_tag_ids(2);
+                // for (let i = 0; i < uuids.length; i++) {
+                //     tag_mods.push({
+                //         type: TagModificationType.CREATE,
+                //         tag: {
+                //             id: uuids[i],
+                //             name: `Test Tag ${i} HERE`,
+                //             color: "red-800",
+                //             icon: "",
+                //             aliases: ["newest again"],
+                //             parent: "",
+                //             children: []
+                //         }
+                //     });
+                // }
+                // console.log("Tag UUIDs", Object.values(tag_data).map((tag) => tag.id));
+                // console.log("Named ranges", spreadsheet.namedRanges);
+                // const existing_uuids = Object.values(tag_data).map((tag) => tag.id).slice(0, 2);
+                // for (let i = 0; i < existing_uuids.length; i++) {
+                //     tag_mods.push({
+                //         type: TagModificationType.UPDATE,
+                //         tag: {
+                //             id: existing_uuids[i],
+                //             name: `Test Tag ${i} (UPDATED!)`,
+                //             color: "purple-800",
+                //             icon: "",
+                //             aliases: ["updated!"],
+                //             parent: "",
+                //             children: []
+                //         }
+                //     });
+                // }
+                // const alternate_uuids = Object.values(tag_data).map((tag) => tag.id).slice(2, 4)
+                // console.log("Alternate UUIDs", alternate_uuids);
+                // for (let i = 0; i < alternate_uuids.length; i++) {
+                //     tag_mods.push({
+                //         type: TagModificationType.DELETE,
+                //         tag: {
+                //             id: alternate_uuids[i],
+                //             name: `Test Tag ${i} (DELETED!)`,
+                //             color: "purple-800",
+                //             icon: "",
+                //             aliases: [],
+                //             parent: "",
+                //             children: []
+                //         }
+                //     });
+                // }
+                // console.log("Tag modifications", tag_mods);
+                // apply_tag_modifications(spreadsheet, tag_mods).then((result) => {
+                //     console.log("New spreadsheet", result);
+                // });
+
+                // delete_named_rows(spreadsheet, [Object.keys(tag_data)[0]]).then((result) => {
+                //     console.log("Deleted rows", result);
+                // });
                 // const uuids = generate_tag_ids(2);
                 // const test_tags: TagList = {};
-                // test_tags[uuids[0]] = {
-                //         id: uuids[0],
-                //         name: "This Tag",
+                // for (let i = 0; i < uuids.length; i++) {
+                //     test_tags[uuids[i]] = {
+                //         id: uuids[i],
+                //         name: `Test Tag ${i}`,
                 //         color: "red-800",
                 //         icon: "",
                 //         aliases: [],
                 //         parent: "",
                 //         children: []
-                //     },
-                // test_tags[uuids[1]] = {
-                //     id: uuids[1],
-                //     name: "Another tag",
-                //     color: "cyan-800",
-                //     icon: "tagger",
-                //     aliases: ["Alias 1", "Alias 2"],
-                //     parent: "0",
-                //     children: ["2", "1"]
+                //     }
                 // }
-                // create_tag_rows(sheet, test_tags).then((result) => {
-                //     console.log("Created tags", result);
-                // });
+                // create_tag_rows(spreadsheet, test_tags)
+                /*.then((result) => {
+                    console.log("Created tags", result);
+                    test_tags[uuids[0]] = {
+                        id: uuids[0],
+                        name: "This Tag (UPDATED!)",
+                        color: "purple-800",
+                        icon: "",
+                        aliases: [],
+                        parent: "",
+                        children: []
+                    }
+                    update_existing_tag_rows(sheet_id, test_tags).then((result) => {
+                        console.log("Updated tags", result);
+                    });
+                });*/
+
             });
         });
         // get_tag_file_metadata(drive_id).then((metadata) => {

@@ -14,3 +14,14 @@ export type Tag = {
 export type TagList = {
     [id: TagID]: Tag;
 };
+
+export enum TagModificationType {
+    CREATE = "TAG.CREATE",
+    DELETE = "TAG.DELETE",
+    UPDATE = "TAG.UPDATE",
+}
+
+export type TagModification = {
+    type: TagModificationType;
+    tag: Tag;
+}
