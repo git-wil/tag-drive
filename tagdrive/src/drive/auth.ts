@@ -14,56 +14,6 @@ include_granted_scopes=true&
 prompt=consent&
 access_type=offline`.replace(/\s+/g, "");
 
-// Check if the user is authorized, if not, authorize them
-// export async function authorize() {
-//     if (!(await getAuth())) {
-//         return AuthorizeWindow();
-//     } else {
-//         console.log("Already authorized");
-//         return null;
-//     }
-// }
-
-// // Open a new window to authorize the user
-// function AuthorizeWindow() {
-//     const dispatch = useAppDispatch();
-//     const new_window_width = 450;
-//     const new_window_height = 600;
-//     const new_window = window.open(
-//         AUTH_URL, 
-//         "", 
-//         `width=${new_window_width},height=${new_window_height}`
-//     )!;
-//     new_window.moveTo(
-//         new_window.opener.screen.width / 2 - new_window_width/2,
-//         new_window.opener.screen.height / 2 - new_window_height/2
-//     );
-//     new_window.focus();
-//     const check_window = setInterval(async () => {
-//         try {
-//             // Check if the window has been redirected to the redirect uri
-//             if (!new_window.crossOriginIsolated) {
-//                 if (new_window.location.href.includes(REDIRECT_URI)) {
-//                     // Get the authorization code from the url and save it
-//                     clearInterval(check_window);
-//                     console.log("Window location")
-//                     const code = new_window.location.href.split("code=")[1].split("&")[0];
-//                     new_window.close();
-//                     console.log("Got code", code);
-//                     await saveAuthByCode(code);
-//                     console.log("Authorized! Code:", code);
-//                     dispatch(setAuthorized(true));
-//                 }
-//             }
-//         } catch (error) {
-//             // Ignore any DOM errors, its just the google auth page not allowing
-//             // the old window to access location.href
-//         }
-//     // Check every 200ms
-//     }, 200);
-//     return check_window;
-// }
-
 export async function saveAuthByCode(auth_code: string) {
     // Get the access and refresh tokens from the Google OAuth2 API
     const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -128,7 +78,6 @@ async function updateToken(): Promise<string | null> {
 export async function getAuth(): Promise<string | null> {
     const token = getToken();
     if (token) {
-        console.log("Token exists")
         //Check if token is valid using the Google Drive API
         try {
             const response = await fetch("https://oauth2.googleapis.com/tokeninfo?access_token=" + token, {
@@ -145,7 +94,7 @@ export async function getAuth(): Promise<string | null> {
     return null;
 }
 
-export async function logout() {
+export function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("refresh_token");
     console.log("Deauthorized");

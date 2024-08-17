@@ -1,30 +1,63 @@
 import "./Editor.css";
-import {
-    Button,
-    Card,
-    Spinner,
-} from "@nextui-org/react";
+import { Button, Card, Progress } from "@nextui-org/react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 
+import {
+    apply_file_modifications,
+    apply_tag_modifications,
+    get_file_list,
+    get_tag_sheet_data,
+    get_tag_sheet_id,
+    parse_file_data_from_sheet_values,
+    parse_tag_data_from_sheet_values,
+    parse_values_from_spreadsheet,
+} from "../drive/google_helpers";
+import {
+    TagSidebar,
+    TagSearchBox,
+    SelectedTagsPopup,
+} from "../tag/tag_display";
+import { FileCardContainer } from "../file/file_display";
 
-import { create_tag_sheet, get_file_list, get_tag_sheet_data, get_tag_sheet_id, parse_file_data_from_sheet_values, parse_tag_data_from_sheet_values, parse_values_from_spreadsheet, update_raw_sheet_values, generate_tag_ids, delete_named_rows, apply_tag_modifications, apply_file_modifications, generate_file_ids } from "../drive/google_helpers";
-import { FileCardContainer, FileSearchBox,TagPanel, TagSearchBox } from "../tag/tag_display";
+import { FileSearchBox } from "../file/file_display";
 
 // import { files, setFiles, selectedFile, setSelectedFile, tags, setTags, StateManager } from "../StateManager";
 
-import { clearSelectedFiles, getDragging, getFilesLoaded, getLoadingModal, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setLoadingModal, setQueriedFiles, setVisibleFiles } from "../store/slice_files.ts";
-import { getFileTags, getTagFileMetadata, getTagMetadata, getModified, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata, setModified } from "../store/slice_tags.ts";
+// import { clearSelectedFiles, getDragging, getFilesLoaded, getLoadingModal, getQueriedFiles, getVisibleFiles, resetDraggedOver, setFiles, setFilesLoaded, setLoadingModal, setQueriedFiles, setVisibleFiles } from "../store/slice_files_old.ts";
+// import { getFileTags, getTagFileMetadata, getTagMetadata, getModified, setFileTags, setQueriedTags, setTagFileMetaData, setTagMetadata, setModified } from "../store/slice_tags_old.ts";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AnimatePresence, motion } from "framer-motion";
-import { TagList, TagModification, TagModificationType } from "../tag/tag_types";
-import { FileModification, FileModificationType } from "../file/file_types.ts";
-
-
-let initialized = false;
-
-// const drive_id = ""; // "0AH0hueN2V6xzUk9PVA";
-
-
+import {
+    areDriveFilesLoaded,
+    incrementVisibleFileCount,
+    isModified,
+    queryAllFiles,
+    setDriveFiles,
+} from "../store/slice_editor";
+import {
+    clearFileModQueue,
+    getFileModQueue,
+    setFileTagMap,
+} from "../store/slice_files";
+import {
+    clearTagModQueue,
+    getTagModQueue,
+    queryAllTags,
+    setTagList,
+} from "../store/slice_tags";
+import {
+    clearProgress,
+    getProgress,
+    initializeProgress,
+    updateProgress,
+} from "../store/slice_editor";
+import {
+    getSpreadsheet,
+    setSpreadsheet,
+    setSpreadsheetId,
+} from "../store/slice_spreadsheet";
+// import { TagList, TagModification, TagModificationType } from "../tag/tag_types";
+// import { FileModification, FileModificationType } from "../file/file_types.ts";
 
 /*
 TODO Editor:
@@ -105,13 +138,13 @@ TODO IMPORTANT
   ✔ Get all data from both sheets
   ✔ Parse data into tag and file objects
   - As edit
-      - If files get tags, modify locally stored file search string, etc.
-      - If tags get edited, update locally stored file search strings with that tag
-      - Add these to the modification queue
+      ✔ If files get tags, modify locally stored file search string, etc.
+      ✔ If tags get edited, update locally stored file search strings with that tag
+      ✔ Add these to the modification queue
       ✔ Compile list of modifications...
       ✔ Tags by UID
           ✔ Modification type (edit, delete, create)
-          - If tag was created before last save, change the information in the "create" mod, don't add an edit mod on top
+          ✔ If tag was created before last save, change the information in the "create" mod, don't add an edit mod on top
       ✔ Files by GID
           ✔ Modification type (edit, delete, create) 
   - On save,
@@ -127,6 +160,34 @@ TODO IMPORTANT
 
 
 
+Keyboard Shortcuts:
+- Ctrl + S: Save
+- /: Focus on file search bar
+- Alt + /: Focus on tag search bar
+- Ctrl + /: Show keyboard shortcuts
+- T: Focus on tag panel (for selecting tags)
+- F: Focus on file panel (for applying tags)
+- Alt + T: Create new tag
+- Shift + T: Edit selected tag (if only one tag is selected)
+- 1-9: (while focused on tag panel) Assign current selected tag(s) to number (and deselect tags)
+     : (while focused on file panel) Add number tags to selected files
+- Shift + 1-9: (while focused on tag panel) Add current selected tag(s) to number (and deselect tags)
+             : (while focused on file panel) Remove number tags from selected files
+- 
+
+To create:
+✔ Tags in sidebar are selectable
+    - Deselect all?
+    - If horizontal lines clicked, open tag in editor modal
+- Files in main panel are selectable
+- Tags in main panel have a delete button
+    - When clicked, show popup to confirm deletion
+    - When shift is held, delete without confirmation
+- When tags selected, clicking on file will apply tags to file
+- When no tags selected, clicking on file will select file
+
+
+
 
 
 Old:
@@ -136,170 +197,218 @@ Old:
     ✖ create new tag
 */
 
-
 function EditorNew() {
     const dispatch = useAppDispatch();
 
     const drive_id = localStorage.getItem("drive") || "";
 
-    const visible_files = useAppSelector(getVisibleFiles);
-    const queried_files = useAppSelector(getQueriedFiles);
-    const dragging = useAppSelector(getDragging);
-    const tags = useAppSelector(getTagMetadata);
-    const file_tags = useAppSelector(getFileTags);
-    const tag_file_metadata = useAppSelector(getTagFileMetadata);
-    const loading_modal = useAppSelector(getLoadingModal);
-    const is_modified = useAppSelector(getModified);
-    const files_loaded = useAppSelector(getFilesLoaded);
-    // const tag_file_id = useAppSelector(getTagFileID)
-    // const tag_file_metadata = useAppSelector(getTagFileMetadata)
+    const is_modified = useAppSelector(isModified);
+    const progress_data = useAppSelector(getProgress);
+    const tag_mods = useAppSelector(getTagModQueue);
+    const file_mods = useAppSelector(getFileModQueue);
+    const tag_spreadsheet = useAppSelector(getSpreadsheet);
+    const are_drive_files_loaded = useAppSelector(areDriveFilesLoaded);
 
-    window.onbeforeunload = (e) => {
-        if (is_modified) {    
-            // save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then(() => {
-            //     console.log("Saved");
-            //     dispatch(setModified(false));
-            // });
-            const event = e || window.event
-            if (event) {
-                event.returnValue = "You have unsaved changes. Are you sure you want to leave?"
-            }
-            return "You have unsaved changes. Are you sure you want to leave?"
-        }
-        
-    };
+    window.onload = () => {
+        // TODO: Implement cached loading
+        const estimate_number_of_file_thousands = 2;
+        const progress_steps = 4 + estimate_number_of_file_thousands;
+        dispatch(
+            initializeProgress({
+                steps: progress_steps,
+                message: "Getting tag file id...",
+            }),
+        );
 
-    if (!initialized) {
-        dispatch(setLoadingModal({open: true, message: "Loading tag file..."}))
+        const create_file_progress_hook = () => {
+            dispatch(
+                updateProgress({ step: 1, message: "Creating tag file..." }),
+            );
+        };
+
         // Load tags and files
-        // create_tag_sheet(drive_id).then((sheet_id) => {
-        //     console.log("Got tag sheet id", sheet_id)
-        // });
-        get_tag_sheet_id(drive_id).then((sheet_id) => {
-            get_tag_sheet_data(sheet_id).then((spreadsheet) => {
-                console.log("Got tag sheet data", spreadsheet);
-                const data = parse_values_from_spreadsheet(spreadsheet);
-                const tag_data = parse_tag_data_from_sheet_values(data);
-                console.log("Tag data:", tag_data);
-                const file_data = parse_file_data_from_sheet_values(data);
-                console.log("File data:", file_data);
-                // Create some sample FileModifications
-                // const file_mods: FileModification[] = [];
-                // const uuids = generate_file_ids(2);
-                // const test_g_ids = generate_tag_ids(2);
-                
-                // const alternate_gids = Object.values(file_data).map((file) => file.gid).slice(2, 4)
-                // for (let i = 0; i < alternate_gids.length; i++) {
-                //     file_mods.push({
-                //         type: FileModificationType.DELETE,
-                //         file: {
-                //             sheet_id: file_data[alternate_gids[i]].sheet_id,
-                //             gid: alternate_gids[i],
-                //             tags: [],
-                //             search_string: `Test File ${i} (DELETED!)`
-                //         }
-                //     });
-                // }
-                // for (let i = 0; i < uuids.length; i++) {
-                //     file_mods.push({
-                //         type: FileModificationType.CREATE,
-                //         file: {
-                //             sheet_id: uuids[i],
-                //             gid: test_g_ids[i],
-                //             tags: ["Test"],
-                //             search_string: `Test File ${i} new!`
-                //         }
-                //     });
-                // }
-                // const existing_gids = Object.values(file_data).map((file) => file.gid).slice(0, 2);
-                // for (let i = 0; i < existing_gids.length; i++) {
-                //     file_mods.push({
-                //         type: FileModificationType.UPDATE,
-                //         file: {
-                //             sheet_id: file_data[existing_gids[i]].sheet_id,
-                //             gid: existing_gids[i],
-                //             tags: ["Test"],
-                //             search_string: `Test File ${i} (UPDATED!)`
-                //         }
-                //     });
-                // }
-                // console.log("File modifications", file_mods);
-                // apply_file_modifications(spreadsheet, file_mods).then((result) => {
-                //     console.log("New spreadsheet", result);
-                // });
-                // Create some sample TagModifications
-                // const tag_mods: TagModification[] = [];
-                // const uuids = generate_tag_ids(2);
-                // for (let i = 0; i < uuids.length; i++) {
-                //     tag_mods.push({
-                //         type: TagModificationType.CREATE,
-                //         tag: {
-                //             id: uuids[i],
-                //             name: `Test Tag ${i} HERE`,
-                //             color: "red-800",
-                //             icon: "",
-                //             aliases: ["newest again"],
-                //             parent: "",
-                //             children: []
-                //         }
-                //     });
-                // }
-                // console.log("Tag UUIDs", Object.values(tag_data).map((tag) => tag.id));
-                // console.log("Named ranges", spreadsheet.namedRanges);
-                // const existing_uuids = Object.values(tag_data).map((tag) => tag.id).slice(0, 2);
-                // for (let i = 0; i < existing_uuids.length; i++) {
-                //     tag_mods.push({
-                //         type: TagModificationType.UPDATE,
-                //         tag: {
-                //             id: existing_uuids[i],
-                //             name: `Test Tag ${i} (UPDATED!)`,
-                //             color: "purple-800",
-                //             icon: "",
-                //             aliases: ["updated!"],
-                //             parent: "",
-                //             children: []
-                //         }
-                //     });
-                // }
-                // const alternate_uuids = Object.values(tag_data).map((tag) => tag.id).slice(2, 4)
-                // console.log("Alternate UUIDs", alternate_uuids);
-                // for (let i = 0; i < alternate_uuids.length; i++) {
-                //     tag_mods.push({
-                //         type: TagModificationType.DELETE,
-                //         tag: {
-                //             id: alternate_uuids[i],
-                //             name: `Test Tag ${i} (DELETED!)`,
-                //             color: "purple-800",
-                //             icon: "",
-                //             aliases: [],
-                //             parent: "",
-                //             children: []
-                //         }
-                //     });
-                // }
-                // console.log("Tag modifications", tag_mods);
-                // apply_tag_modifications(spreadsheet, tag_mods).then((result) => {
-                //     console.log("New spreadsheet", result);
-                // });
+        get_tag_sheet_id(drive_id, create_file_progress_hook).then(
+            (sheet_id) => {
+                console.log("Got tag sheet id", sheet_id);
+                dispatch(setSpreadsheetId(sheet_id));
+                dispatch(
+                    updateProgress({ step: 2, message: "Getting tag data..." }),
+                );
+                get_tag_sheet_data(sheet_id).then((spreadsheet) => {
+                    dispatch(
+                        updateProgress({
+                            step: 3,
+                            message: "Updating tag data...",
+                        }),
+                    );
+                    console.log("Got tag sheet data", spreadsheet);
+                    dispatch(setSpreadsheet(spreadsheet));
 
-                // delete_named_rows(spreadsheet, [Object.keys(tag_data)[0]]).then((result) => {
-                //     console.log("Deleted rows", result);
-                // });
-                // const uuids = generate_tag_ids(2);
-                // const test_tags: TagList = {};
-                // for (let i = 0; i < uuids.length; i++) {
-                //     test_tags[uuids[i]] = {
-                //         id: uuids[i],
-                //         name: `Test Tag ${i}`,
-                //         color: "red-800",
-                //         icon: "",
-                //         aliases: [],
-                //         parent: "",
-                //         children: []
-                //     }
-                // }
-                // create_tag_rows(spreadsheet, test_tags)
-                /*.then((result) => {
+                    // Intermediary step to parse data
+                    const data = parse_values_from_spreadsheet(spreadsheet);
+
+                    const tag_data = parse_tag_data_from_sheet_values(data);
+                    console.log("Tag data:", tag_data);
+                    dispatch(setTagList(tag_data));
+
+                    const file_data = parse_file_data_from_sheet_values(data);
+                    console.log("File data:", file_data);
+                    dispatch(setFileTagMap(file_data));
+
+                    // Load files
+                    dispatch(
+                        updateProgress({
+                            step: 4,
+                            message: "Loading files...",
+                        }),
+                    );
+                    // Create a hook to update progress when each thousand files is loaded
+                    const get_file_progress_hook = (thousand: number) => {
+                        if (thousand < estimate_number_of_file_thousands) {
+                            dispatch(
+                                updateProgress({
+                                    step: 4 + thousand,
+                                    message: "Loading files...",
+                                }),
+                            );
+                        }
+                    };
+                    get_file_list(drive_id, get_file_progress_hook).then(
+                        (files) => {
+                            dispatch(
+                                updateProgress({
+                                    step: progress_steps,
+                                    message: "Loaded!",
+                                }),
+                            );
+                            // Clear progress bar after a second
+                            setTimeout(() => {
+                                dispatch(clearProgress());
+                            }, 1000);
+                            console.log("Got files", files);
+                            dispatch(setDriveFiles(files));
+                            dispatch(queryAllFiles());
+                            dispatch(queryAllTags());
+                        },
+                    );
+
+                    // Create some sample FileModifications
+                    // const file_mods: FileModification[] = [];
+                    // const uuids = generate_file_ids(2);
+                    // const test_g_ids = generate_tag_ids(2);
+
+                    // const alternate_gids = Object.values(file_data).map((file) => file.gid).slice(2, 4)
+                    // for (let i = 0; i < alternate_gids.length; i++) {
+                    //     file_mods.push({
+                    //         type: FileModificationType.DELETE,
+                    //         file: {
+                    //             sheet_id: file_data[alternate_gids[i]].sheet_id,
+                    //             gid: alternate_gids[i],
+                    //             tags: [],
+                    //             search_string: `Test File ${i} (DELETED!)`
+                    //         }
+                    //     });
+                    // }
+                    // for (let i = 0; i < uuids.length; i++) {
+                    //     file_mods.push({
+                    //         type: FileModificationType.CREATE,
+                    //         file: {
+                    //             sheet_id: uuids[i],
+                    //             gid: test_g_ids[i],
+                    //             tags: ["Test"],
+                    //             search_string: `Test File ${i} new!`
+                    //         }
+                    //     });
+                    // }
+                    // const existing_gids = Object.values(file_data).map((file) => file.gid).slice(0, 2);
+                    // for (let i = 0; i < existing_gids.length; i++) {
+                    //     file_mods.push({
+                    //         type: FileModificationType.UPDATE,
+                    //         file: {
+                    //             sheet_id: file_data[existing_gids[i]].sheet_id,
+                    //             gid: existing_gids[i],
+                    //             tags: ["Test"],
+                    //             search_string: `Test File ${i} (UPDATED!)`
+                    //         }
+                    //     });
+                    // }
+                    // console.log("File modifications", file_mods);
+                    // apply_file_modifications(spreadsheet, file_mods).then((result) => {
+                    //     console.log("New spreadsheet", result);
+                    // });
+                    // Create some sample TagModifications
+                    // const tag_mods: TagModification[] = [];
+                    // const uuids = generate_tag_ids(2);
+                    // for (let i = 0; i < uuids.length; i++) {
+                    //     tag_mods.push({
+                    //         type: TagModificationType.CREATE,
+                    //         tag: {
+                    //             id: uuids[i],
+                    //             name: `Test Tag ${i} HERE`,
+                    //             color: "red-800",
+                    //             icon: "",
+                    //             aliases: ["newest again"],
+                    //             parent: "",
+                    //             children: []
+                    //         }
+                    //     });
+                    // }
+                    // console.log("Tag UUIDs", Object.values(tag_data).map((tag) => tag.id));
+                    // console.log("Named ranges", spreadsheet.namedRanges);
+                    // const existing_uuids = Object.values(tag_data).map((tag) => tag.id).slice(0, 2);
+                    // for (let i = 0; i < existing_uuids.length; i++) {
+                    //     tag_mods.push({
+                    //         type: TagModificationType.UPDATE,
+                    //         tag: {
+                    //             id: existing_uuids[i],
+                    //             name: `Test Tag ${i} (UPDATED!)`,
+                    //             color: "purple-800",
+                    //             icon: "",
+                    //             aliases: ["updated!"],
+                    //             parent: "",
+                    //             children: []
+                    //         }
+                    //     });
+                    // }
+                    // const alternate_uuids = Object.values(tag_data).map((tag) => tag.id).slice(2, 4)
+                    // console.log("Alternate UUIDs", alternate_uuids);
+                    // for (let i = 0; i < alternate_uuids.length; i++) {
+                    //     tag_mods.push({
+                    //         type: TagModificationType.DELETE,
+                    //         tag: {
+                    //             id: alternate_uuids[i],
+                    //             name: `Test Tag ${i} (DELETED!)`,
+                    //             color: "purple-800",
+                    //             icon: "",
+                    //             aliases: [],
+                    //             parent: "",
+                    //             children: []
+                    //         }
+                    //     });
+                    // }
+                    // console.log("Tag modifications", tag_mods);
+                    // apply_tag_modifications(spreadsheet, tag_mods).then((result) => {
+                    //     console.log("New spreadsheet", result);
+                    // });
+
+                    // delete_named_rows(spreadsheet, [Object.keys(tag_data)[0]]).then((result) => {
+                    //     console.log("Deleted rows", result);
+                    // });
+                    // const uuids = generate_tag_ids(2);
+                    // const test_tags: TagList = {};
+                    // for (let i = 0; i < uuids.length; i++) {
+                    //     test_tags[uuids[i]] = {
+                    //         id: uuids[i],
+                    //         name: `Test Tag ${i}`,
+                    //         color: "red-800",
+                    //         icon: "",
+                    //         aliases: [],
+                    //         parent: "",
+                    //         children: []
+                    //     }
+                    // }
+                    // create_tag_rows(spreadsheet, test_tags)
+                    /*.then((result) => {
                     console.log("Created tags", result);
                     test_tags[uuids[0]] = {
                         id: uuids[0],
@@ -314,69 +423,126 @@ function EditorNew() {
                         console.log("Updated tags", result);
                     });
                 });*/
-
-            });
-        });
-        // get_tag_file_metadata(drive_id).then((metadata) => {
-        //     console.log("Got metadata", metadata)
-        //     dispatch(setTagFileMetaData(metadata));
-        //     dispatch(setLoadingModal({open: true, message: "Loading tag data..."}))
-        //     get_tag_file_data(metadata).then((data: TagFile) => {
-        //         console.log("Got data", data);
-        //         dispatch(setTagMetadata(data.TAG_DATA));
-        //         dispatch(setFileTags(data.FILE_DATA));
-        //         dispatch(setLoadingModal({open: true, message: "Loading files..."}))
-        //         get_file_list(drive_id).then((files) => {
-        //             dispatch(setFiles(files));
-        //             dispatch(setQueriedFiles(files));
-        //             dispatch(setQueriedTags(Object.values(data.TAG_DATA)));
-        //             dispatch(setFilesLoaded(true));
-        //             dispatch(setLoadingModal({open: false, message: "Done"}))
-        //         });
-        //     });
-        // });
-        initialized = true;
-    }
-
-    const SHORTCUT_KEYS = [
-        "meta+s",
-        "ctrl+s",
-        "/"
-    ]
-
-    const ref = useHotkeys(SHORTCUT_KEYS, (_, handler) => {
-        if (!handler || !handler.keys) return;
-
-        const shortcut = handler.keys.join("");
-        
-        if (shortcut == "/") {
-            document.getElementById("fileSearchBox")?.focus();
-        }
-        if (shortcut == "s" && (handler.meta || handler.ctrl)) {
-            console.log("Saving");
-            dispatch(setLoadingModal({open: true, message: "Saving..."}));
-            // Save tag file to google drive
-            if (is_modified) {
-                save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
-                    console.log("Saved", result);
-                    dispatch(setLoadingModal({open: false, message: "Saving..."}));
-                    dispatch(setModified(false));
                 });
+            },
+        );
+    };
+
+    const save_tag_file = async () => {
+        console.log("Saving tag file...");
+        let progress_step = 0;
+        dispatch(initializeProgress({ steps: 3, message: "Saving..." }));
+        // Save tag modifications
+        const tag_mod_result = apply_tag_modifications(
+            tag_spreadsheet,
+            tag_mods,
+        ).then((result) => {
+            console.log("Saved tags", result);
+            dispatch(
+                updateProgress({ step: progress_step++, message: "Saving..." }),
+            );
+        });
+        // Save file modifications
+        const file_mod_result = apply_file_modifications(
+            tag_spreadsheet,
+            file_mods,
+        ).then((result) => {
+            console.log("Saved files", result);
+            dispatch(
+                updateProgress({ step: progress_step++, message: "Saving..." }),
+            );
+        });
+        // Await both tag and file modifications
+        return Promise.all([tag_mod_result, file_mod_result]).then(() => {
+            dispatch(updateProgress({ step: 3, message: "Saved!" }));
+            dispatch(clearTagModQueue());
+            dispatch(clearFileModQueue());
+            // Clear progress bar after a second
+            setTimeout(() => {
+                dispatch(clearProgress());
+            }, 1000);
+        });
+    };
+
+    // Save tag file when leaving the page
+    window.onbeforeunload = (e) => {
+        console.log("Is modified", is_modified);
+        if (is_modified) {
+            save_tag_file();
+            const event = e || window.event;
+            if (event) {
+                event.returnValue =
+                    "You have unsaved changes. Are you sure you want to leave?";
             }
+            return "You have unsaved changes. Are you sure you want to leave?";
         }
-    }, { preventDefault: true })
+        return;
+    };
+
+    const SHORTCUT_KEYS = ["meta+s", "ctrl+s", "/"];
+
+    const ref = useHotkeys(
+        SHORTCUT_KEYS,
+        (_, handler) => {
+            if (!handler || !handler.keys) return;
+
+            const shortcut = handler.keys.join("");
+
+            if (shortcut == "/") {
+                document.getElementById("fileSearchBox")?.focus();
+            }
+            if (shortcut == "s" && (handler.meta || handler.ctrl)) {
+                save_tag_file();
+            }
+        },
+        { preventDefault: true },
+    );
 
     return (
-        <>  
-            {/* @ts-expect-error This is a valid ref, its from the useHotkeys hook and is designed to be used this way */}
-            <div className="align-middle justify-center h-dvh p-8" ref={ref} tabIndex={-1}
-            onClick={()=>{
-                // Clear selected files when clicking outside of the file panel
-                dispatch(clearSelectedFiles());
-            }}
+        <>
+            <div
+                className="align-middle justify-center h-dvh p-8"
+                // @ts-expect-error This is a valid ref, its from the useHotkeys hook and is designed to be used this way
+                ref={ref}
+                tabIndex={-1}
+                onClick={() => {
+                    // Clear selected files when clicking outside of the file panel
+                    // dispatch(clearSelectedFiles());
+                }}
             >
                 <AnimatePresence>
-                    {loading_modal.message && <motion.div
+                    <motion.div
+                        initial={{
+                            opacity: 0,
+                        }}
+                        animate={{
+                            opacity: progress_data.steps > 0 ? 1 : 0,
+                            transition: { duration: 0.3 },
+                        }}
+                        exit={{
+                            opacity: 0,
+                            transition: { duration: 0.3 },
+                        }}
+                        className="absolute m-auto pl-16 right-8 bottom-1 z-50 h-fit w-full flex items-center justify-end gap-2 overflow-hidden"
+                    >
+                        <div className="mb-1 text-default-800 text-sm font-semibold w-fit min-w-fit h-5">
+                            {progress_data.message}
+                        </div>
+                        <Progress
+                            aria-label={progress_data.message || "Progress bar"}
+                            value={progress_data.current}
+                            maxValue={progress_data.steps}
+                            size="md"
+                            className="max-w-xl w-full"
+                            classNames={{
+                                indicator:
+                                    "bg-gradient-to-r from-secondary-500 to-primary-600",
+                                track: "drop-shadow-md border border-2 border-primary-100/30 bg-primary-50/40",
+                            }}
+                        />
+                    </motion.div>
+
+                    {/* {loading_modal.message && <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: (loading_modal.open) ? 1 : 0 }}
                         exit={{ opacity: 0 }}
@@ -393,7 +559,7 @@ function EditorNew() {
                         <h1 className="text-2xl text-primary pe-5 select-none">{loading_modal.message}</h1>
                         <Spinner size="lg" color="primary" />
                         </div>
-                    </motion.div>}
+                    </motion.div>} */}
                 </AnimatePresence>
                 <Card
                     isBlurred
@@ -403,34 +569,33 @@ function EditorNew() {
                 >
                     <div className="grid grid-rows-5 grid-cols-1 sm:grid-rows-none sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-4 2xl:grid-cols-5 gap-2 items-center justify-center h-full w-full">
                         <div
-                        id="control-panel"
-                        onDragEnter={(e) => {
-                            // Reset dragged over items when dragged into the control panel
-                            if (dragging.type == "tag") {
-                                e.preventDefault();
-                                dispatch(resetDraggedOver());
-                            }
-                        }}
-                        className="relative flex flex-col overflow-auto gap-2 row-span-2 w-full order-last sm:order-first sm:row-auto sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-1 2xl:grid-cols-1 h-full">
+                            id="control-panel"
+                            // onDragEnter={(e) => {
+                            //     // Reset dragged over items when dragged into the control panel
+                            //     if (dragging.type == "tag") {
+                            //         e.preventDefault();
+                            //         dispatch(resetDraggedOver());
+                            //     }
+                            // }}
+                            className="relative flex flex-col overflow-auto gap-2 row-span-2 w-full order-last sm:order-first sm:row-auto sm:col-span-2 md:col-span-2 lg:col-span-2 xl:col-span-1 2xl:grid-cols-1 h-full"
+                        >
                             <div
-                            id="tag-search-bar"
-                            className="w-full h-fit flex-none flex flex-row gap-2 rounded-lg">
+                                id="tag-search-bar"
+                                className="w-full h-fit flex-none flex flex-row gap-2 rounded-lg"
+                            >
                                 <Button
                                     fullWidth
                                     color="primary"
                                     variant="ghost"
-                                    isDisabled={!files_loaded}
+                                    isDisabled={!are_drive_files_loaded}
                                     className="text-primary-800 w-2/5 bg-primary-200 h-[50px] text-[0.92rem]"
                                     onClick={() => {
                                         if (is_modified) {
-                                            dispatch(setLoadingModal({open: true, message: "Saving..."}));
-                                            save_tag_file({TAG_DATA: tags, FILE_DATA: file_tags}, tag_file_metadata, drive_id).then((result) => {
-                                                console.log("Saved", result);
-                                                dispatch(setModified(false));
-                                                window.location.href = "/index.html";
+                                            save_tag_file().then(() => {
+                                                window.location.href = "/";
                                             });
                                         } else {
-                                            window.location.href = "/index.html";
+                                            window.location.href = "/";
                                         }
                                     }}
                                 >
@@ -446,32 +611,41 @@ function EditorNew() {
                                     Create New File
                                 </Button>
                             </div>
-                            <TagSearchBox/>
+                            <TagSearchBox />
                             <div className="w-full h-full flex-1 overflow-auto">
-                                <TagPanel/>
+                                <TagSidebar />
                             </div>
                         </div>
                         <div
-                        id="main-panel"
-                        className="flex flex-col gap-2 overflow-auto row-span-3 sm:row-auto sm:col-span-3 md:col-span-4 lg:col-span-5 xl:col-span-3 2xl:col-span-4 w-full h-full">
+                            id="main-panel"
+                            className="flex flex-col gap-2 overflow-auto row-span-3 sm:row-auto sm:col-span-3 md:col-span-4 lg:col-span-5 xl:col-span-3 2xl:col-span-4 w-full h-full"
+                        >
                             <div className="w-full h-fit flex-none">
-                                <FileSearchBox/>
+                                <FileSearchBox />
                             </div>
                             <div
-                            id="super-file-card-container"
-                            onScroll={(e) => {
-                                // @ts-expect-error - This event target always has these properties
-                                const { scrollTop, scrollHeight, clientHeight } = e.target;
-                                const position = Math.ceil(
-                                    (scrollTop / (scrollHeight - clientHeight)) * 100
-                                );
-                                if (position > 75 && visible_files < queried_files.length) {
-                                    // Load more files
-                                    dispatch(setVisibleFiles(visible_files + 30));
-                                }
-                            }}
-                            className="w-full h-full flex-1 overflow-y-scroll rounded-3xl bg-primary-50">
-                                <FileCardContainer/>
+                                id="super-file-card-container"
+                                onScroll={(e) => {
+                                    const scrollTop = e.currentTarget.scrollTop;
+                                    const scrollHeight =
+                                        e.currentTarget.scrollHeight;
+                                    const clientHeight =
+                                        e.currentTarget.clientHeight;
+                                    const position = Math.ceil(
+                                        (scrollTop /
+                                            (scrollHeight - clientHeight)) *
+                                            100,
+                                    );
+                                    if (position > 75) {
+                                        // Load more files
+                                        // TODO: Consider not loading if all files are visible, to stop dispatch loading time
+                                        dispatch(incrementVisibleFileCount());
+                                    }
+                                }}
+                                className="relative w-full h-full flex-1 overflow-y-scroll rounded-3xl bg-primary-50"
+                            >
+                                <FileCardContainer />
+                                <SelectedTagsPopup />
                             </div>
                         </div>
                     </div>

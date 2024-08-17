@@ -1,9 +1,34 @@
 import google_modular from "./google_modular";
-import { DriveListResponse, FileListResponse, GoogleFileModifier, GoogleFile } from "./google_types";
+import {
+    DriveListResponse,
+    FileListResponse,
+    GoogleFileModifier,
+    GoogleFile,
+} from "./google_types";
 import { TAG_FILE_NAME } from "../assets/constants";
-import { batchUpdateResponseBody, GenericTagOperatorData, NamedRange, ParsedSpreadsheetValues, RowData, Sheet, Spreadsheet, UpdateRequest, ValueRange, values } from "./google_types/spreadsheets";
-import { TagList, TagModification, TagModificationType } from "../tag/tag_types";
-import { FileList, FileModification, FileModificationType } from "../file/file_types";
+import {
+    batchUpdateResponseBody,
+    NamedRange,
+    ParsedSpreadsheetValues,
+    RowData,
+    Sheet,
+    Spreadsheet,
+    UpdateRequest,
+    ValueRange,
+    values,
+} from "./google_types/spreadsheets";
+import {
+    TagID,
+    TagList,
+    TagModification,
+    TagModificationType,
+} from "../tag/tag_types";
+import {
+    FileID,
+    FileList,
+    FileModification,
+    FileModificationType,
+} from "../file/file_types";
 
 export const ALLOWED_MIME_TYPES = [
     "application/vnd.google-apps.document",
@@ -30,17 +55,21 @@ export const ALLOWED_MIME_TYPES = [
     "video/x-matroska",
 ];
 
-const ALLOWED_MIME_TYPES_STRING = "((mimeType = '" + ALLOWED_MIME_TYPES.join("') or (mimeType = '") + "'))";
+const ALLOWED_MIME_TYPES_STRING =
+    "((mimeType = '" + ALLOWED_MIME_TYPES.join("') or (mimeType = '") + "'))";
 
-export const MIME_TYPE_TO_NAME: {[id: string]: string} = {
+export const MIME_TYPE_TO_NAME: { [id: string]: string } = {
     "application/vnd.google-apps.document": "Document",
     "application/vnd.google-apps.spreadsheet": "Spreadsheet",
     "application/vnd.google-apps.presentation": "Slideshow",
     "application/vnd.google-apps.form": "Form",
     "application/msword": "Word Doc",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "Powerpoint",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        "Word",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        "Excel",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        "Powerpoint",
     "application/pdf": "PDF",
     "application/rtf": "RTF",
     "text/csv": "CSV",
@@ -55,21 +84,24 @@ export const MIME_TYPE_TO_NAME: {[id: string]: string} = {
     "video/x-msvideo": "AVI",
     "video/quicktime": "MOV",
     "video/x-matroska": "MKV",
-}
+};
 
 export async function get_drive_list(): Promise<DriveListResponse> {
     return google_modular.drives.list({
         pageSize: 100,
         fields: "drives(id, name, colorRgb)",
         orderBy: "name, recency desc",
-    })
+    });
 }
 
-export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
+export async function get_file_list(
+    drive_id: string,
+    get_file_progress_hook: (thousands_of_files_processed: number) => void,
+): Promise<GoogleFile[]> {
     let response: FileListResponse;
     let files: GoogleFile[] = [];
     let pageToken: string | undefined = undefined;
-    
+    let thousands_of_files_processed = 0;
     do {
         // Get 1000 files from the selected drive
         try {
@@ -85,8 +117,10 @@ export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
                 pageToken: pageToken || "",
             });
         } catch (err) {
-            console.log(err)
-            alert("Error getting files from Google Drive. Please try again later.");
+            console.log(err);
+            alert(
+                "Error getting files from Google Drive. Please try again later.",
+            );
             return [];
         }
         // Update the list of files
@@ -97,6 +131,9 @@ export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
         }
         // Update the page token
         pageToken = response.nextPageToken;
+        // Update the progress
+        thousands_of_files_processed += 1;
+        get_file_progress_hook(thousands_of_files_processed);
     } while (pageToken);
     return files;
     // return google_modular.files.list({
@@ -111,7 +148,6 @@ export async function get_file_list(drive_id: string): Promise<GoogleFile[]> {
     // })
 }
 
-
 /**
  * Create a new TagOperator spreadsheet in the user's drive or a specific shared drive.
  * The spreadsheet will have two sheets: Tags and Files, with appropriate headers for
@@ -124,16 +160,19 @@ export async function create_tag_sheet(drive_id: string): Promise<string> {
     const fileMetadata: GoogleFileModifier = {
         name: TAG_FILE_NAME,
         parents: [drive_id || "root"],
-        mimeType: 'application/vnd.google-apps.spreadsheet',
+        mimeType: "application/vnd.google-apps.spreadsheet",
         appProperties: {
             "tag-operator-version": "1.0.0",
         },
     };
-    const tag_sheet = await google_modular.files.create_no_content(fileMetadata, {
-        supportsAllDrives: true,
-    });
+    const tag_sheet = await google_modular.files.create_no_content(
+        fileMetadata,
+        {
+            supportsAllDrives: true,
+        },
+    );
     const spreadsheetId = tag_sheet.id;
-    
+
     // Create spreadsheet with 2 sheets: Tags and Files
     await google_modular.spreadsheets.batchUpdate(spreadsheetId, {
         requests: [
@@ -163,12 +202,12 @@ export async function create_tag_sheet(drive_id: string): Promise<string> {
     });
     // Initialize the Tags and Files sheets with header values
     const inintialize_tags_header = value_range_factory("Tags!A1:G1", [
-        ["ID", "Name", "Color", "Icon", "Aliases", "Child IDs", "Parent ID"]
+        ["ID", "Name", "Color", "Icon", "Aliases", "Child IDs", "Parent ID"],
     ]);
     const inintialize_files_header = value_range_factory("Files!A1:D1", [
-        ["ID", "Google ID", "Tag IDs","Search String"]
+        ["ID", "Google ID", "Tag IDs", "Search String"],
     ]);
-    
+
     update_raw_sheet_values(spreadsheetId, [
         inintialize_tags_header,
         inintialize_files_header,
@@ -186,7 +225,10 @@ export async function create_tag_sheet(drive_id: string): Promise<string> {
  * @param drive_id The drive id to search for the tag file in. If empty, search in the user's drive.
  * @returns The id of the existing TagOperator spreadsheet, or the id of a newly created spreadsheet.
  */
-export async function get_tag_sheet_id(drive_id: string): Promise<string> {
+export async function get_tag_sheet_id(
+    drive_id: string,
+    create_file_hook?: () => void,
+): Promise<string> {
     // Parameters to search for the tag file
     const params = {
         corpora: drive_id == "" ? "user" : "drive",
@@ -196,15 +238,18 @@ export async function get_tag_sheet_id(drive_id: string): Promise<string> {
         fields: "files(*)",
         supportsAllDrives: true,
         includeItemsFromAllDrives: drive_id != "",
-    }
+    };
 
     const result = await google_modular.files.list(params);
     const files = result.files;
     // Tag file exists
     if (files.length > 0) {
         return result.files[0].id;
-    // Tag file does not exist, so create it
+        // Tag file does not exist, so create it
     } else {
+        if (create_file_hook) {
+            create_file_hook();
+        }
         return await create_tag_sheet(drive_id);
     }
 }
@@ -214,7 +259,9 @@ export async function get_tag_sheet_id(drive_id: string): Promise<string> {
  * @param spreadsheetId The id of the TagOperator spreadsheet
  * @returns The spreadsheet object containing only metadata.
  */
-export async function get_tag_sheet_metadata(spreadsheetId: string): Promise<Spreadsheet> {
+export async function get_tag_sheet_metadata(
+    spreadsheetId: string,
+): Promise<Spreadsheet> {
     return google_modular.spreadsheets.get(spreadsheetId, {
         includeGridData: false,
     });
@@ -225,7 +272,9 @@ export async function get_tag_sheet_metadata(spreadsheetId: string): Promise<Spr
  * @param spreadsheetId The id of the TagOperator spreadsheet
  * @returns The spreadsheet object containing metadata and the data from the Tags and Files sheets.
  */
-export async function get_tag_sheet_data(spreadsheetId: string): Promise<Spreadsheet> {
+export async function get_tag_sheet_data(
+    spreadsheetId: string,
+): Promise<Spreadsheet> {
     // Get all the data from the tag sheet
     // The first row is the header, which has the column names
     // ID	      Name	    Color	       Aliases	Child IDs   Parent ID   [for Tags]
@@ -250,13 +299,15 @@ export async function get_tag_sheet_data(spreadsheetId: string): Promise<Spreads
  * @param spreadsheet The spreadsheet object to parse values from
  * @returns An object containing the parsed values from the spreadsheet, organized by sheet, query range, and row.
  */
-export function parse_values_from_spreadsheet(spreadsheet: Spreadsheet): ParsedSpreadsheetValues {
+export function parse_values_from_spreadsheet(
+    spreadsheet: Spreadsheet,
+): ParsedSpreadsheetValues {
     const data: ParsedSpreadsheetValues = {};
     if (!spreadsheet.sheets) {
         return data;
     }
     // For each sheet in the spreadsheet
-    for (const [sheet_index, sheet]  of spreadsheet.sheets.entries()) {
+    for (const [sheet_index, sheet] of spreadsheet.sheets.entries()) {
         data[sheet_index] = {};
         // For each query range present in the sheet
         for (const [query_index, queryBlock] of sheet.data.entries()) {
@@ -272,7 +323,12 @@ export function parse_values_from_spreadsheet(spreadsheet: Spreadsheet): ParsedS
                 }
                 // Get the formatted value of the cell, or the effective value if the formatted value is not present
                 // If neither are present, use an empty string
-                const values: string[] = row.values.map((cell) => cell.formattedValue || cell.effectiveValue?.stringValue || "");
+                const values: string[] = row.values.map(
+                    (cell) =>
+                        cell.formattedValue ||
+                        cell.effectiveValue?.stringValue ||
+                        "",
+                );
                 data[sheet_index][query_index][row_index] = values;
             }
         }
@@ -285,10 +341,15 @@ export function parse_values_from_spreadsheet(spreadsheet: Spreadsheet): ParsedS
  * @param sheetData The parsed data from the TagOperator spreadsheet
  * @returns The TagList object associating tag ids to their tag information.
  */
-export function parse_tag_data_from_sheet_values(sheetData: ParsedSpreadsheetValues): TagList {
+export function parse_tag_data_from_sheet_values(
+    sheetData: ParsedSpreadsheetValues,
+): TagList {
     // Parse the data into Tag format
     const tags: TagList = {};
     // Tag data is stored in the first sheet
+    if (!sheetData[0] || !sheetData[0][0]) {
+        return tags;
+    }
     for (const [row_index, row] of Object.entries(sheetData[0][0])) {
         // Skip the header row
         if (row_index === "0") {
@@ -308,7 +369,7 @@ export function parse_tag_data_from_sheet_values(sheetData: ParsedSpreadsheetVal
             aliases: aliases ? aliases.split(",") : [],
             children: child_ids ? child_ids.split(",") : [],
             parent: parent_id || "",
-        }
+        };
     }
     return tags;
 }
@@ -318,9 +379,14 @@ export function parse_tag_data_from_sheet_values(sheetData: ParsedSpreadsheetVal
  * @param sheetData The parsed data from the TagOperator spreadsheet
  * @returns The FileTagData object associating file ids to their tag ids and search strings.
  */
-export function parse_file_data_from_sheet_values(sheetData: ParsedSpreadsheetValues): FileList {
+export function parse_file_data_from_sheet_values(
+    sheetData: ParsedSpreadsheetValues,
+): FileList {
     const files: FileList = {};
     // File data is stored in the second sheet
+    if (!sheetData[1] || !sheetData[1][0]) {
+        return files;
+    }
     for (const [row_index, row] of Object.entries(sheetData[1][0])) {
         // Skip the header row
         if (row_index === "0") {
@@ -347,9 +413,12 @@ export function parse_file_data_from_sheet_values(sheetData: ParsedSpreadsheetVa
  * The value ranges are updated in the order they are provided, and data is input as raw values.
  * @param spreadsheetId The id of the spreadsheet to update.
  * @param valueRanges The list of value ranges to update in the spreadsheet.
- * @returns 
+ * @returns
  */
-export async function update_raw_sheet_values(spreadsheetId: string, valueRanges: ValueRange[]) {
+export async function update_raw_sheet_values(
+    spreadsheetId: string,
+    valueRanges: ValueRange[],
+) {
     return google_modular.spreadsheets.values.batchUpdate(spreadsheetId, {
         valueInputOption: "RAW",
         data: valueRanges,
@@ -359,24 +428,28 @@ export async function update_raw_sheet_values(spreadsheetId: string, valueRanges
 /**
  * Create a value range object for a specific range in a sheet by range and values.
  */
-export function value_range_factory(range: string, values: string[][]): ValueRange {
+export function value_range_factory(
+    range: string,
+    values: string[][],
+): ValueRange {
     return {
         range: range,
         majorDimension: "ROWS",
         values: values,
-    }
+    };
 }
 
 /**
  * Create a named range object for a specific range in a sheet by sheet id and range indices.
  */
 export function named_range_factory(
-        sheetId: number,
-        startRowIndex: number,
-        endRowIndex: number,
-        startColumnIndex: number,
-        endColumnIndex: number,
-        name: string): NamedRange {
+    sheetId: number,
+    startRowIndex: number,
+    endRowIndex: number,
+    startColumnIndex: number,
+    endColumnIndex: number,
+    name: string,
+): NamedRange {
     return {
         name: name,
         range: {
@@ -385,8 +458,8 @@ export function named_range_factory(
             endRowIndex: endRowIndex,
             startColumnIndex: startColumnIndex,
             endColumnIndex: endColumnIndex,
-        }
-    }
+        },
+    };
 }
 
 export function row_data_factory(values: string[]): RowData {
@@ -394,48 +467,23 @@ export function row_data_factory(values: string[]): RowData {
     return {
         values: values.map((value) => ({
             formattedValue: value,
-            userEnteredValue: {stringValue: value},
-            effectiveValue: {stringValue: value},
-        }))
-    }
+            userEnteredValue: { stringValue: value },
+            effectiveValue: { stringValue: value },
+        })),
+    };
 }
 
-export function append_cell_update_factory(sheetId: number, rowData: RowData[]): UpdateRequest {
+export function append_cell_update_factory(
+    sheetId: number,
+    rowData: RowData[],
+): UpdateRequest {
     return {
         appendCells: {
             sheetId: sheetId,
             rows: rowData,
             fields: "*",
-        }
-    }
-}
-
-/**
- * Generate a specific number of random tag ids, in the format TXXXXXXXX where X
- * is a random hex digit. The number of ids generated is 1 by default.
- * @param number_of_ids The number of tag ids to generate
- * @returns A list of tag id strings.
- */
-export function generate_tag_ids(number_of_ids: number = 1): string[] {
-    const ids = [];
-    for (let i = 0; i < number_of_ids; i++) {
-        ids.push("T" + crypto.randomUUID().replace(/-/g, ""))
-    }
-    return ids;
-}
-
-/**
- * Generate a specific number of random fle ids, in the format FXXXXXXXX where X
- * is a random hex digit. The number of ids generated is 1 by default.
- * @param number_of_ids The number of tag ids to generate
- * @returns A list of tag id strings.
- */
-export function generate_file_ids(number_of_ids: number = 1): string[] {
-    const ids = [];
-    for (let i = 0; i < number_of_ids; i++) {
-        ids.push("F" + crypto.randomUUID().replace(/-/g, ""))
-    }
-    return ids;
+        },
+    };
 }
 
 /**
@@ -445,44 +493,42 @@ export function generate_file_ids(number_of_ids: number = 1): string[] {
  * @param tags The list of tags to add to the spreadsheet
  * @returns The promise of the named range batch update response body
  */
-export async function append_named_rows(spreadsheetId: string, sheet: Sheet, data: GenericTagOperatorData, name_index: number): Promise<batchUpdateResponseBody> {
+export async function append_named_rows(
+    spreadsheetId: string,
+    sheet: Sheet,
+    row_values: string[][],
+    name_index: number,
+): Promise<batchUpdateResponseBody> {
     if (!sheet.properties.sheetId) {
-        throw Error(`Sheet ${sheet} does not have a valid sheetId!`)
+        throw Error(`Sheet ${sheet} does not have a valid sheetId!`);
     }
-    // Parse out row values by turning arrays into strings for each data object
-    const row_values = Object.values(data).map(
-        (row) => Object.values(row).map(
-            (value) => typeof value === "string" ? value : value.join(",")
-        )
-    );
     // Get the sheet's id
     const sheetId = sheet.properties.sheetId;
     // Find the index of the last row in the sheet
     const table_end_index = sheet.data[0].rowData.length;
     // Create a list of batch updates to modify the spreadsheet
     const updates: UpdateRequest[] = [];
-    
+
     // Create row data
     const row_data = row_values.map((row) => row_data_factory(row));
     // Append the new data rows to the sheet
-    updates.push(
-        append_cell_update_factory(sheetId, row_data)
-    );
+    updates.push(append_cell_update_factory(sheetId, row_data));
 
     // Create addNamedRange updates to add named ranges for each piece of data
     for (const [index, row] of row_values.entries()) {
         const name = row[name_index];
         const row_length = row.length;
         updates.push({
-            addNamedRange:
-                {namedRange: named_range_factory(
+            addNamedRange: {
+                namedRange: named_range_factory(
                     sheetId,
                     table_end_index + index,
                     table_end_index + 1 + index,
                     0,
                     row_length,
-                    name)
-                }
+                    name,
+                ),
+            },
         });
     }
     return google_modular.spreadsheets.batchUpdate(spreadsheetId, {
@@ -494,18 +540,18 @@ export async function append_named_rows(spreadsheetId: string, sheet: Sheet, dat
  * Update existing tags in the TagOperator spreadsheet. These tags must have been created
  * using create_tag_rows so that the rows will have named ranges by id.
  * @param spreadsheet The TagOperator spreadsheet id
- * @param tags The list of modified existing tags to update in the spreadsheet 
- * @returns 
+ * @param tags The list of modified existing tags to update in the spreadsheet
+ * @returns
  */
-export async function update_named_rows(spreadsheetId: string, data: GenericTagOperatorData, name_index: number): Promise<values.batchUpdateResponseBody> {
-    // Parse out row values by turning arrays into strings for each data object
-    const row_values = Object.values(data).map(
-        (row) => Object.values(row).map(
-            (value) => typeof value === "string" ? value : value.join(",")
-        )
-    );
+export async function update_named_rows(
+    spreadsheetId: string,
+    row_values: string[][],
+    name_index: number,
+): Promise<values.batchUpdateResponseBody> {
     // Create a list of value updates for each row using the name index as a named range
-    const value_updates = row_values.map((row) => value_range_factory(row[name_index], [row]));
+    const value_updates = row_values.map((row) =>
+        value_range_factory(row[name_index], [row]),
+    );
     return update_raw_sheet_values(spreadsheetId, value_updates);
 }
 
@@ -517,22 +563,31 @@ export async function update_named_rows(spreadsheetId: string, data: GenericTagO
  * @param names The list of named row names to delete
  * @returns A batch update response body for the delete named range and delete dimension updates
  */
-export async function delete_named_rows(spreadsheet: Spreadsheet, names: string[]) {
+export async function delete_named_rows(
+    spreadsheet: Spreadsheet,
+    names: string[],
+) {
     // Get the spreadsheet id of the Tags sheet
     const spreadsheetId = spreadsheet.spreadsheetId;
     // Find all the named ranges that need to be deleted
-    const marked_named_ranges = spreadsheet.namedRanges.filter((named_range) => names.includes(named_range.name));
+    const marked_named_ranges = spreadsheet.namedRanges.filter((named_range) =>
+        names.includes(named_range.name),
+    );
     // Sort the named ranges by their start row index, deleting the last row first
-    marked_named_ranges.sort((a, b) => b.range.startRowIndex - a.range.startRowIndex);
-    
+    marked_named_ranges.sort(
+        (a, b) => b.range.startRowIndex - a.range.startRowIndex,
+    );
+
     // Create a list delete named range updates for each named range
-    const delete_named_ranges_updates = marked_named_ranges.map((named_range) => {
-        return {
-            deleteNamedRange: {
-                namedRangeId: named_range.namedRangeId,
-            }
-        }
-    });
+    const delete_named_ranges_updates = marked_named_ranges.map(
+        (named_range) => {
+            return {
+                deleteNamedRange: {
+                    namedRangeId: named_range.namedRangeId,
+                },
+            };
+        },
+    );
 
     // Create a list of delete dimension updates for the row ranges of the named ranges
     const delete_dimension_updates = marked_named_ranges.map((named_range) => {
@@ -543,9 +598,9 @@ export async function delete_named_rows(spreadsheet: Spreadsheet, names: string[
                     dimension: "ROWS",
                     startIndex: named_range.range.startRowIndex,
                     endIndex: named_range.range.endRowIndex,
-                }
-            }
-        }
+                },
+            },
+        };
     });
 
     // Batch update the spreadsheet with the delete named range and delete dimension updates
@@ -554,45 +609,80 @@ export async function delete_named_rows(spreadsheet: Spreadsheet, names: string[
     });
 }
 
-
-
-
-export async function apply_tag_modifications(spreadsheet: Spreadsheet, tag_modifications: TagModification[]) {
+export async function apply_tag_modifications(
+    spreadsheet: Spreadsheet,
+    tag_modifications: TagModification[],
+) {
+    //
+    const simplified_mods = simplify_tag_mod_queue(tag_modifications);
     // Get the spreadsheet id of the TagOperator spreadsheet
     const spreadsheetId = spreadsheet.spreadsheetId;
     // Get the Tags sheet from the spreadsheet
-    const tag_sheet = spreadsheet.sheets.find((sheet) => sheet.properties.title === "Tags");
+    const tag_sheet = spreadsheet.sheets.find(
+        (sheet) => sheet.properties.title === "Tags",
+    );
     if (!tag_sheet) {
         throw Error("Tags sheet not found in spreadsheet" + spreadsheetId);
     }
-    const TAG_NAME_INDEX = 0
+    const TAG_ID_INDEX = 0;
 
     // Update existing tags in the TagOperator spreadsheet
-    const update_mods = tag_modifications.filter((mod) => mod.type === TagModificationType.UPDATE);
-    const update_data: GenericTagOperatorData = {};
+    const update_mods = simplified_mods.filter(
+        (mod) => mod.type === TagModificationType.UPDATE,
+    );
+    const update_data: string[][] = [];
     for (const mod of update_mods) {
-        update_data[mod.tag.id] = mod.tag;
+        update_data.push([
+            mod.tag.id,
+            mod.tag.name,
+            mod.tag.color,
+            mod.tag.icon,
+            mod.tag.aliases.join(","),
+            mod.tag.children.join(","),
+            mod.tag.parent,
+        ]);
     }
     let update_response;
     if (Object.keys(update_data).length > 0) {
         console.log("Updating tags", update_data);
-        update_response = update_named_rows(spreadsheetId, update_data, TAG_NAME_INDEX);
+        update_response = update_named_rows(
+            spreadsheetId,
+            update_data,
+            TAG_ID_INDEX,
+        );
     }
 
     // Create new tags in the TagOperator spreadsheet
-    const create_mods = tag_modifications.filter((mod) => mod.type === TagModificationType.CREATE);
-    const create_data: GenericTagOperatorData = {};
+    const create_mods = simplified_mods.filter(
+        (mod) => mod.type === TagModificationType.CREATE,
+    );
+    const create_data: string[][] = [];
     for (const mod of create_mods) {
-        create_data[mod.tag.id] = mod.tag;
+        create_data.push([
+            mod.tag.id,
+            mod.tag.name,
+            mod.tag.color,
+            mod.tag.icon,
+            mod.tag.aliases.join(","),
+            mod.tag.children.join(","),
+            mod.tag.parent,
+        ]);
     }
     let create_response;
     if (Object.keys(create_data).length > 0) {
         console.log("Creating tags", create_data);
-        create_response = append_named_rows(spreadsheetId, tag_sheet, create_data, TAG_NAME_INDEX);
+        create_response = append_named_rows(
+            spreadsheetId,
+            tag_sheet,
+            create_data,
+            TAG_ID_INDEX,
+        );
     }
 
     // Delete tags from the TagOperator spreadsheet
-    const delete_mods = tag_modifications.filter((mod) => mod.type === TagModificationType.DELETE);
+    const delete_mods = simplified_mods.filter(
+        (mod) => mod.type === TagModificationType.DELETE,
+    );
     const delete_names = delete_mods.map((mod) => mod.tag.id);
     let delete_response;
     if (delete_names.length > 0) {
@@ -607,43 +697,76 @@ export async function apply_tag_modifications(spreadsheet: Spreadsheet, tag_modi
     return get_tag_sheet_data(spreadsheetId);
 }
 
-
-export async function apply_file_modifications(spreadsheet: Spreadsheet, file_modifications: FileModification[]) {
+export async function apply_file_modifications(
+    spreadsheet: Spreadsheet,
+    file_modifications: FileModification[],
+) {
+    const simplified_mods = simplify_file_mod_queue(file_modifications);
+    console.log("Simplified mods", simplified_mods);
     // Get the spreadsheet id of the TagOperator spreadsheet
     const spreadsheetId = spreadsheet.spreadsheetId;
     // Get the Tags sheet from the spreadsheet
-    const files_sheet = spreadsheet.sheets.find((sheet) => sheet.properties.title === "Files");
+    const files_sheet = spreadsheet.sheets.find(
+        (sheet) => sheet.properties.title === "Files",
+    );
     if (!files_sheet) {
         throw Error("Files sheet not found in spreadsheet" + spreadsheetId);
     }
-    const FILE_NAME_INDEX = 0
+    const FILE_ID_INDEX = 0; // sheet_id
 
     // Update existing tags in the TagOperator spreadsheet
-    const update_mods = file_modifications.filter((mod) => mod.type === FileModificationType.UPDATE);
-    const update_data: GenericTagOperatorData = {};
+    const update_mods = simplified_mods.filter(
+        (mod) => mod.type === FileModificationType.UPDATE,
+    );
+    const update_data: string[][] = [];
     for (const mod of update_mods) {
-        update_data[mod.file.sheet_id] = mod.file;
+        update_data.push([
+            mod.file.sheet_id,
+            mod.file.gid,
+            mod.file.tags.join(","),
+            mod.file.search_string,
+        ]);
     }
+    console.log("All mods", file_modifications);
+    console.log("Update data", update_data);
     let update_response;
     if (Object.keys(update_data).length > 0) {
-        console.log("Updating files", update_data);
-        update_response = update_named_rows(spreadsheetId, update_data, FILE_NAME_INDEX);
+        update_response = update_named_rows(
+            spreadsheetId,
+            update_data,
+            FILE_ID_INDEX,
+        );
+        console.log("Update response", await update_response);
     }
 
     // Create new tags in the TagOperator spreadsheet
-    const create_mods = file_modifications.filter((mod) => mod.type === FileModificationType.CREATE);
-    const create_data: GenericTagOperatorData = {};
+    const create_mods = simplified_mods.filter(
+        (mod) => mod.type === FileModificationType.CREATE,
+    );
+    const create_data: string[][] = [];
     for (const mod of create_mods) {
-        create_data[mod.file.sheet_id] = mod.file;
+        create_data.push([
+            mod.file.sheet_id,
+            mod.file.gid,
+            mod.file.tags.join(","),
+            mod.file.search_string,
+        ]);
     }
     let create_response;
     if (Object.keys(create_data).length > 0) {
         console.log("Creating files", create_data);
-        create_response = append_named_rows(spreadsheetId, files_sheet, create_data, FILE_NAME_INDEX);
+        create_response = append_named_rows(
+            spreadsheetId,
+            files_sheet,
+            create_data,
+            FILE_ID_INDEX,
+        );
     }
 
     // Delete tags from the TagOperator spreadsheet
-    const delete_mods = file_modifications.filter((mod) => mod.type === FileModificationType.DELETE);
+    const delete_mods = simplified_mods.filter(
+        (mod) => mod.type === FileModificationType.DELETE,
+    );
     const delete_names = delete_mods.map((mod) => mod.file.sheet_id);
     let delete_response;
     if (delete_names.length > 0) {
@@ -658,10 +781,86 @@ export async function apply_file_modifications(spreadsheet: Spreadsheet, file_mo
     return get_tag_sheet_data(spreadsheetId);
 }
 
+function simplify_tag_mod_queue(
+    tag_mod_queue: TagModification[],
+): TagModification[] {
+    const simplified_tag_mods: { [tag_id: TagID]: TagModification } = {};
+    for (const mod of tag_mod_queue) {
+        if (mod.tag.id in simplified_tag_mods) {
+            if (mod.type === TagModificationType.DELETE) {
+                if (
+                    simplified_tag_mods[mod.tag.id].type ===
+                    TagModificationType.CREATE
+                ) {
+                    // If the existing mod is a create, we don't actually need to create the tag
+                    delete simplified_tag_mods[mod.tag.id];
+                } else {
+                    // The mod must be an update, so we can just change the type
+                    simplified_tag_mods[mod.tag.id].type =
+                        TagModificationType.DELETE;
+                }
+            } else {
+                // If the existing mod is a create, we only want to modify
+                // the tag data and keep the create call, so the type should
+                // stay as a create. If the existing mod is an update, and
+                // this mod is also an update, we don't need to change the type.
+                simplified_tag_mods[mod.tag.id].tag = mod.tag;
+            }
+        } else {
+            simplified_tag_mods[mod.tag.id] = mod;
+        }
+    }
+    return Object.values(simplified_tag_mods);
+}
 
-
-
-
+function simplify_file_mod_queue(
+    file_mod_queue: FileModification[],
+): FileModification[] {
+    const new_mods: { [file_id: FileID]: FileModification } = {};
+    for (const mod of file_mod_queue) {
+        if (mod.file.gid in new_mods) {
+            // If the current mod is a delete,
+            if (mod.type === FileModificationType.DELETE) {
+                // If the existing mod is a create, we don't actually need to create the tag
+                if (
+                    new_mods[mod.file.gid].type === FileModificationType.CREATE
+                ) {
+                    delete new_mods[mod.file.gid];
+                } else {
+                    // The mod must be an update, so we can just change the type
+                    new_mods[mod.file.gid] = mod;
+                }
+            } else {
+                // If the existing mod is a delete and this is a create, then
+                // the file actually already exists in the spreadsheet, so instead
+                // of deleting and creating it we can just update it.
+                if (
+                    new_mods[mod.file.gid].type ===
+                        FileModificationType.DELETE &&
+                    (mod.type === FileModificationType.CREATE ||
+                        mod.type === FileModificationType.UPDATE)
+                ) {
+                    new_mods[mod.file.gid] = {
+                        type: FileModificationType.UPDATE,
+                        file: mod.file,
+                    };
+                } else {
+                    // If the existing mod is a create, we only want to modify
+                    // the tag data and keep the create call, so the type should
+                    // stay as a create. If the existing mod is an update, and
+                    // this mod is also an update, we don't need to change the type.
+                    new_mods[mod.file.gid] = {
+                        type: new_mods[mod.file.gid].type,
+                        file: mod.file,
+                    };
+                }
+            }
+        } else {
+            new_mods[mod.file.gid] = mod;
+        }
+    }
+    return Object.values(new_mods);
+}
 
 // async function create_tag_file(drive_id: string): Promise<string> {
 //     console.log("Creating tag file");
@@ -758,7 +957,6 @@ export async function apply_file_modifications(spreadsheet: Spreadsheet, file_mo
 
 //     console.log("Saved tag file", await result);
 // }
-
 
 // export async function delete_tag_files_in_drive(drive_id: string) {
 //     const result = await google_modular.files.list({

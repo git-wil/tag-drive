@@ -1,17 +1,17 @@
-import { TagID } from '../tag/tag_types';
+import { TagID } from "../tag/tag_types";
 
 export type FileID = string; // Given from Google API
 
 export type FileData = {
-    gid: FileID,
-    sheet_id: string,
-    tags: TagID[],
-    search_string: string,
-}
+    sheet_id: string;
+    gid: FileID;
+    tags: TagID[];
+    search_string: string;
+};
 
 export type FileList = {
-    [gid: FileID]: FileData
-}
+    [gid: FileID]: FileData;
+};
 
 export enum FileModificationType {
     CREATE = "FILE.CREATE",
@@ -22,4 +22,4 @@ export enum FileModificationType {
 export type FileModification = {
     type: FileModificationType;
     file: FileData;
-}
+};

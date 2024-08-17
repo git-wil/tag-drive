@@ -1,29 +1,16 @@
 {
-  "hosting": {
-    "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "redirects": [ {
-      "source": "/editor",
-      "destination": "/editor.html",
-      "type": 301
-    }, {
-      "source": "/privacy",
-      "destination": "/privacy.html",
-      "type": 301
-    } ]
-  },
-  "emulators": {
     "hosting": {
-      "port": 3000
+        "public": "dist",
+        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
     },
-    "ui": {
-      "enabled": true,
-      "port": 5033
-    },
-    "singleProjectMode": true
-  }
+    "emulators": {
+        "hosting": {
+            "port": 3000
+        },
+        "ui": {
+            "enabled": true,
+            "port": 5033
+        },
+        "singleProjectMode": true
+    }
 }

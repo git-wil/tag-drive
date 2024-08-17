@@ -4,8 +4,8 @@ export type TagColor = string; // From the list of possible tag colors
 export type Tag = {
     id: TagID;
     name: string;
-    icon: string;
     color: TagColor;
+    icon: string;
     aliases: string[];
     children: TagID[];
     parent: TagID;
@@ -24,4 +24,17 @@ export enum TagModificationType {
 export type TagModification = {
     type: TagModificationType;
     tag: Tag;
-}
+};
+
+export type TagApplier =
+    | "click"
+    | "1"
+    | "2"
+    | "3"
+    | "4"
+    | "5"
+    | "6"
+    | "7"
+    | "8"
+    | "9"
+    | "0";

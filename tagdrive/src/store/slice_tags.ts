@@ -1,266 +1,339 @@
-import { createSlice } from '@reduxjs/toolkit'
-import { RootState } from './store.js';
-import { Tag, TagID, TagList } from '../tag/tag_types.ts';
-import { FileID, FileList } from '../file/file_types.ts';
-import { GoogleFile } from '../drive/google_types.js';
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { RootState } from "./store.js";
+import {
+    Tag,
+    TagApplier,
+    TagID,
+    TagList,
+    TagModification,
+    TagModificationType,
+} from "../tag/tag_types.js";
+import {
+    generate_search_string,
+    getFilesWithTagNaive,
+    modifyFile,
+    removeTagFromFile,
+} from "./slice_files.js";
+import { FileModification, FileModificationType } from "../file/file_types.js";
 
-
-const initial_tags: Tag[] = Array(5).fill(null as Tag | null)
-
-
-export const tagsSlice = createSlice({
-    name: 'tags',
+const tagsSlice = createSlice({
+    name: "tags",
     initialState: {
-        modified: false,
-        tag_metadata: {} as TagList,
-        tag_file_id: "",
-        tag_file_metadata: {} as GoogleFile,
-        file_tags: {} as FileList,
-        queried_tags: initial_tags,
-        modifying_tag_data: {
-            name: "",
-            color: "",
-            aliases: [] as string[],
-            children: [] as string[],
-            parent: "",
-            is_new: true,
-            blurred_name: false,
-            blurred_color: false,
-        },
+        tag_list: {} as TagList,
+        tag_mod_queue: [] as TagModification[],
+        // The currently queried tags
+        queried_tags: Array(5).fill(null) as Tag[],
+        // TODO: Implement tag editing
+        // modifying_tag_data: {
+        //     name: "",
+        //     color: "",
+        //     aliases: [] as string[],
+        //     children: [] as string[],
+        //     parent: "",
+        //     is_new: true,
+        //     blurred_name: false,
+        //     blurred_color: false,
+        // },
+        // The indices of the currently selected tags
+        selected_tag_indices: [] as TagID[],
+        // The tags to apply for different inputs
+        tag_appliers: {
+            click: [] as TagID[],
+            1: [] as TagID[],
+            2: [] as TagID[],
+            3: [] as TagID[],
+            4: [] as TagID[],
+            5: [] as TagID[],
+            6: [] as TagID[],
+            7: [] as TagID[],
+            8: [] as TagID[],
+            9: [] as TagID[],
+            0: [] as TagID[],
+        } as { [key: string]: TagID[] },
+        visible_tag_applier: "click" as TagApplier,
     },
     reducers: {
-        setModified: (state, action) => {
-            state.modified = action.payload;
+        setTagList: (state, action: PayloadAction<TagList>) => {
+            state.tag_list = action.payload;
         },
-        setTagMetadata: (state, action) => {
-            // state.modified = true;
-            state.tag_metadata = action.payload;
+        clearTagModQueue: (state) => {
+            state.tag_mod_queue = [];
         },
-        modifyTagMetadata: (state, action) => {
-            state.modified = true;
-            const {tag_id, tag_data} = action.payload;
-            // Get current tag data
-            const current_tag_data = state.tag_metadata[tag_id];
-            let is_new = false;
-            if (!current_tag_data) {
-                is_new = true;
+        modifyTag: (state, action: PayloadAction<TagModification>) => {
+            if (action.payload.type === TagModificationType.DELETE) {
+                delete state.tag_list[action.payload.tag.id];
+            } else {
+                state.tag_list[action.payload.tag.id] = action.payload.tag;
             }
-            // If the tag's parent has changed, remove the tag from the parent's children
-            // and add it to the new parent's children
-            if (is_new || current_tag_data.parent !== tag_data.parent) {
-                if (current_tag_data && current_tag_data.parent !== "") {
-                    const parent = state.tag_metadata[current_tag_data.parent];
-                    parent.children = parent.children.filter((child_id) => child_id !== tag_id);
-                }
-                if (tag_data.parent !== "") {
-                    const new_parent = state.tag_metadata[tag_data.parent];
-                    new_parent.children.push(tag_id);
-                }
-            }
-            // If the tag's children have changed, remove the tag as its children's parent
-            // and add it as the parent of the new children
-            if (is_new || current_tag_data.children !== tag_data.children) {
-                current_tag_data?.children.forEach((child_id) => {
-                    const child = state.tag_metadata[child_id];
-                    child.parent = "";
-                });
-                tag_data.children.forEach((child_id: string) => {
-                    const child = state.tag_metadata[child_id];
-                    child.parent = tag_id;
-                });
-            }
-            // Update the tag metadata
-            state.tag_metadata[tag_id] = tag_data;
-            // Update the search strings for all files with this tag
-            Object.values(state.file_tags).forEach((file_data) => {
-                if (file_data.search_string.includes(tag_id)) {
-                    // Modify the search string for the file
-                    const search_string = file_data.tags.map(
-                        (tag_id: string) => generate_search_string(state, tag_id)
-                    ).join(" ");
-                    file_data.search_string = search_string;
-                }
-                tag_data.children.forEach((child_id: string) => {
-                    if (file_data.search_string.includes(child_id)) {
-                        // Modify the search string for the file
-                        const search_string = file_data.tags.map(
-                            (tag_id: string) => generate_search_string(state, tag_id)
-                        ).join(" ");
-                        file_data.search_string = search_string;
-                    }
-                });
-            });
-
-            console.log("Modified tag", tag_id, "in tag metadata and all files")
-            console.log("Final tag data", state.tag_metadata[tag_id])
-
+            state.tag_mod_queue.push(action.payload);
         },
-        deleteTagMetadata: (state, action) => {
-            state.modified = true;
+        // Query tag actions
+        setQueriedTags: (state, action: PayloadAction<Tag[]>) => {
+            const tags = action.payload;
+            state.queried_tags = tags.sort((a, b) =>
+                a.name.localeCompare(b.name),
+            );
+        },
+        queryAllTags: (state) => {
+            const tags = Object.values(state.tag_list);
+            state.queried_tags = tags.sort((a, b) =>
+                a.name.localeCompare(b.name),
+            );
+        },
+        // Selected tag actions
+        toggleSelectedTagIndex: (state, action: PayloadAction<TagID>) => {
+            // Toggle the tag in the selected tag indices list
             const tag_id = action.payload;
-            // If the tag id is empty, do nothing
-            if (tag_id === "") {
+            const selected_index = state.selected_tag_indices.indexOf(tag_id);
+            if (selected_index === -1) {
+                state.selected_tag_indices.push(tag_id);
+            } else {
+                state.selected_tag_indices.splice(selected_index, 1);
+            }
+            // Toggle the tag in the click tag applier
+            const applier_index = state.tag_appliers["click"].indexOf(tag_id);
+            if (applier_index === -1) {
+                state.tag_appliers["click"].push(tag_id);
+            } else {
+                state.tag_appliers["click"].splice(applier_index, 1);
+            }
+        },
+        clearSelectedTagIndices: (state) => {
+            state.selected_tag_indices = [];
+            state.tag_appliers["click"] = [];
+        },
+        // Tag application actions
+        setClickedTagsAsApplier: (
+            state,
+            action: PayloadAction<{ applier: number }>,
+        ) => {
+            const applier = action.payload.applier;
+            if (applier < 0 || applier > 9) {
                 return;
             }
-
-            // Get tag data
-            const tag_data = state.tag_metadata[tag_id];
-            // Tag does not exist, no need to delete
-            if (!tag_data) {
-                return;
-            }
-            // If the tag has a parent, remove the tag from the parent's children
-            if (tag_data.parent !== "") {
-                const parent = state.tag_metadata[tag_data.parent];
-                parent.children = parent.children.filter((child_id) => child_id !== tag_id);
-            }
-            // If the tag has children, remove the tag as the parent of the children
-            tag_data.children.forEach((child_id) => {
-                const child = state.tag_metadata[child_id];
-                child.parent = "";
-            });
-            // Update the tag metadata
-            delete state.tag_metadata[tag_id];
-            // Remove this tag from all files and update search strings accordingly
-            Object.entries(state.file_tags).forEach(([file_id, file_data]) => {
-                // Probably not the best practice, but we can find all files
-                // that have this tag or a child of this tag by seeing if the
-                // search string contains the tag id (which it always does). Even
-                // if the file doesn't have the tag, re-generating its search string
-                // is harmless.
-                if (file_data.search_string.includes(tag_id)) {
-                    // Remove the tag from the file
-                    file_data.tags = file_data.tags.filter((id: TagID) => id !== tag_id);
-                    if (file_data.tags.length === 0) {
-                        delete state.file_tags[file_id];
-                        return;
-                    }
-                    // Re-generate the search string for the file
-                    const search_string = file_data.tags.map(
-                        (tag_id: string) => generate_search_string(state, tag_id)
-                    ).join(" ");
-                    console.log("File", file_id, "has new search string", search_string)
-                    file_data.search_string = search_string;
+            state.tag_appliers[applier] = state.tag_appliers["click"];
+        },
+        toggleClickedTagsAsApplier: (
+            state,
+            action: PayloadAction<{ applier: number }>,
+        ) => {
+            const applier = action.payload.applier;
+            for (const tag_id of state.tag_appliers["click"]) {
+                const index = state.tag_appliers[applier].indexOf(tag_id);
+                if (index === -1) {
+                    state.tag_appliers[applier].push(tag_id);
+                } else {
+                    state.tag_appliers[applier].splice(index, 1);
                 }
-            });
-            console.log("Deleted tag", tag_id, "from tag metadata and all files")
-
+            }
         },
-        setTagFileMetaData: (state, action) => {
-            // state.modified = true;
-            state.tag_file_metadata = action.payload;
-        },
-        setFileTags: (state, action) => {
-            // state.modified = true;
-            state.file_tags = action.payload;
-        },
-        addTagToFileID: (state, action) => {
-            state.modified = true;
-            const tag_id = action.payload.tag_id;
-            const file_id = action.payload.file_id;
-            if (!state.file_tags[file_id]) {
-                // Initialize the file in the file_tags object
-                state.file_tags[file_id] = {
-                    tags: [],
-                    search_string: "",
+        addClickedTagsToApplier: (
+            state,
+            action: PayloadAction<{ applier: number }>,
+        ) => {
+            const applier = action.payload.applier;
+            for (const tag_id of state.tag_appliers["click"]) {
+                if (!state.tag_appliers[applier].includes(tag_id)) {
+                    state.tag_appliers[applier].push(tag_id);
                 }
-            } 
-            if (!state.file_tags[file_id].tags.includes(tag_id)) {
-                state.file_tags[file_id].tags.push(tag_id);
             }
-            // Generate search strings for the file
-            const search_string = state.file_tags[file_id].tags.map(
-                (tag_id: string) => generate_search_string(state, tag_id)
-            ).join(" ");
-            console.log("File", file_id, "has search string", search_string)
-            state.file_tags[file_id].search_string = search_string;
         },
-        removeTagFromFileID: (state, action) => {
-            state.modified = true;
-            const tag_id = action.payload.tag_id;
-            const file_id = action.payload.file_id;
-            // If the file does not exist, do nothing
-            if (!state.file_tags[file_id]) {
-                return;
-            } 
-            // If the file does not have the tag, do nothing
-            if (!state.file_tags[file_id].tags.includes(tag_id)) {
-                return;
-            }
-            // Remove the tag from the file
-            console.log("Removing tag", tag_id, "from file", file_id, "tags", state.file_tags[file_id].tags)
-            state.file_tags[file_id].tags = state.file_tags[file_id].tags.filter((id: TagID) => id !== tag_id);
-            // If the file now has no tags, remove it from the file_tags object
-            if (state.file_tags[file_id].tags.length === 0) {
-                delete state.file_tags[file_id];
-                return;
-            }
-            // Generate a new strings for the file
-            const search_string = state.file_tags[file_id].tags.map(
-                (tag_id: string) => generate_search_string(state, tag_id)
-            ).join(" ");
-            console.log("File", file_id, "has search string", search_string)
-            state.file_tags[file_id].search_string = search_string;
-        },
-        setQueriedTags: (state, action) => {
-            state.queried_tags = action.payload;
-        },
-        resetQueriedTags: (state) => {
-            state.queried_tags = Object.values(state.tag_metadata);
-        },
-        setModifyingTagData: (state, action) => {
-            state.modifying_tag_data = action.payload;
+        setVisibleTagApplier: (state, action: PayloadAction<TagApplier>) => {
+            state.visible_tag_applier = action.payload;
         },
     },
-})
+});
 
 export const {
-    setModified,
-    setTagMetadata,
-    modifyTagMetadata,
-    deleteTagMetadata,
-    setTagFileMetaData,
-    setFileTags,
-    addTagToFileID,
-    removeTagFromFileID,
+    setTagList,
+    clearTagModQueue,
+    modifyTag,
     setQueriedTags,
-    resetQueriedTags,
-    setModifyingTagData,
-} = tagsSlice.actions
+    queryAllTags,
+    toggleSelectedTagIndex,
+    clearSelectedTagIndices,
+    setClickedTagsAsApplier,
+    toggleClickedTagsAsApplier,
+    addClickedTagsToApplier,
+    setVisibleTagApplier,
+} = tagsSlice.actions;
 
-export const getModified = (state: RootState) => state.tags.modified
-export const getTagMetadata = (state: RootState) => state.tags.tag_metadata
-export const getTagFileID = (state: RootState) => state.tags.tag_file_id
-export const getTagFileMetadata = (state: RootState) => state.tags.tag_file_metadata
-export const getFileTags = (state: RootState) => state.tags.file_tags
-export const getQueriedTags = (state: RootState) => state.tags.queried_tags
-export const getModifyingTagData = (state: RootState) => state.tags.modifying_tag_data
+export const getTagModQueue = (state: RootState) => state.tags.tag_mod_queue;
+export const getTagList = (state: RootState) => state.tags.tag_list;
+// Query tag selectors
+export const getQueriedTags = (state: RootState) => state.tags.queried_tags;
+// Selected tag selectors
+export const getSelectedTagIndices = (state: RootState) => {
+    return state.tags.selected_tag_indices;
+};
+export const isTagSelected = (tag_id: TagID) => (state: RootState) => {
+    return state.tags.selected_tag_indices.includes(tag_id);
+};
+export const areTagsSelected = (state: RootState) => {
+    return state.tags.selected_tag_indices.length > 0;
+};
 
-export const getTagByID = (id: TagID) => (state: RootState) => state.tags.tag_metadata[id]
+export const getTagByID = (id: TagID) => (state: RootState) => {
+    return state.tags.tag_list[id];
+};
 
-export const getFileTagsByID = (id: FileID) => (state: RootState) => state.tags.file_tags[id]
+export const getTagsByApplier = (applier: TagApplier) => (state: RootState) => {
+    return state.tags.tag_appliers[applier];
+};
 
-// @ts-expect-error - This is a thunk
-const generate_search_string = (state, tag_id: TagID) => {
-    if (tag_id === "") {
-        return "";
+export const getVisibleTagApplier = (state: RootState) => {
+    return state.tags.visible_tag_applier;
+};
+
+export const getVisibleTagApplierTags = (state: RootState) => {
+    return state.tags.tag_appliers[state.tags.visible_tag_applier];
+};
+
+/**
+ * Generate a specific number of random tag ids, in the format TXXXXXXXX where X
+ * is a random hex digit. The number of ids generated is 1 by default.
+ * @param number_of_ids The number of tag ids to generate
+ * @returns A list of tag id strings.
+ */
+export function generate_tag_ids(number_of_ids: number = 1): string[] {
+    const ids = [];
+    for (let i = 0; i < number_of_ids; i++) {
+        ids.push("T" + crypto.randomUUID().replace(/-/g, ""));
     }
-    if (!state.tag_metadata[tag_id]) {
-        alert(`Tag with ID ${tag_id} does not exist`)
-        return "";
-    }
-    const tag: Tag = state.tag_metadata[tag_id];
-    let this_search: string = `${tag.name}`;
-    tag.aliases.forEach((alias) => {
-        this_search += ` ${alias}`;
-    });
-    const parent_search: string = generate_search_string(state, tag.parent);
-    if (parent_search === "") {
-        return this_search;
-    }
-    return `${this_search} ${parent_search}`;
+    return ids;
 }
 
+// Thunks
 
+export const createTag = createAsyncThunk(
+    "tags/createTag",
+    async (tag_data: Tag, { dispatch }) => {
+        // Create a tag with no parent or children and add it to the tag list
+        const tag_modification: TagModification = {
+            type: TagModificationType.CREATE,
+            tag: {
+                id: tag_data.id,
+                name: tag_data.name,
+                color: tag_data.color,
+                icon: tag_data.icon,
+                aliases: tag_data.aliases,
+                children: [],
+                parent: "",
+            },
+        };
+        dispatch(modifyTag(tag_modification));
+        // Update the tag using the updateTag thunk to ensure that the tag's parent
+        // and children are correctly updated
+        dispatch(updateTag(tag_data));
+    },
+);
 
-export default tagsSlice.reducer
+export const updateTag = createAsyncThunk(
+    "tags/updateTag",
+    async (tag_data: Tag, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        const tag_id = tag_data.id;
+        if (!state.tags.tag_list[tag_id]) {
+            alert(`Tag with ID ${tag_id} does not exist and cannot be updated`);
+            return;
+        }
+        const existing_tag_data = state.tags.tag_list[tag_id];
+        // If the tag's parent has changed, remove the tag from the parent's children
+        // and add it to the new parent's children
+        if (existing_tag_data.parent !== tag_data.parent) {
+            // If the tag had a parent, remove it as the parent's child
+            if (existing_tag_data.parent !== "") {
+                const parent = state.tags.tag_list[existing_tag_data.parent];
+                parent.children = parent.children.filter(
+                    (child_id) => child_id !== tag_id,
+                );
+            }
+            // If the tag has a new parent, add it as the parent's child
+            if (tag_data.parent !== "") {
+                const new_parent = state.tags.tag_list[tag_data.parent];
+                new_parent.children.push(tag_id);
+            }
+        }
+        // If the tag's children have changed, remove the tag as its children's parent
+        // and add it as the parent of the new children
+        if (existing_tag_data.children !== tag_data.children) {
+            // Remove the tag as the parent of its existing children
+            existing_tag_data.children.forEach((child_id) => {
+                const child = state.tags.tag_list[child_id];
+                child.parent = "";
+            });
+            // Add the tag as the parent of its new children
+            tag_data.children.forEach((child_id: string) => {
+                const child = state.tags.tag_list[child_id];
+                child.parent = tag_id;
+            });
+        }
+        // Update the tag itself
+        const tag_modification: TagModification = {
+            type: TagModificationType.UPDATE,
+            tag: tag_data,
+        };
+        dispatch(modifyTag(tag_modification));
+
+        // Update the search string for all files that contain the tag
+        const files_to_update = getFilesWithTagNaive(tag_id)(state);
+        files_to_update.forEach((file) => {
+            // Re-generate the search string for each file
+            const new_search_string = file.tags
+                .map((tag_id) => generate_search_string(state, tag_id))
+                .join(" ");
+            // If the search string has not changed, do not update the file
+            if (new_search_string === file.search_string) {
+                return;
+            }
+            const file_modification: FileModification = {
+                type: FileModificationType.UPDATE,
+                file: {
+                    ...file,
+                    search_string: new_search_string,
+                },
+            };
+            dispatch(modifyFile(file_modification));
+        });
+    },
+);
+
+export const deleteTag = createAsyncThunk(
+    "tags/deleteTag",
+    async (tag_id: TagID, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        if (!state.tags.tag_list[tag_id]) {
+            alert(`Tag with ID ${tag_id} does not exist and cannot be deleted`);
+            return;
+        }
+        // Get tag data
+        const tag_data = state.tags.tag_list[tag_id];
+        // If the tag has a parent, remove the tag from the parent's children
+        if (tag_data.parent !== "") {
+            const parent = state.tags.tag_list[tag_data.parent];
+            parent.children = parent.children.filter(
+                (child_id) => child_id !== tag_id,
+            );
+        }
+        // If the tag has children, remove the tag as the parent of the children
+        tag_data.children.forEach((child_id) => {
+            const child = state.tags.tag_list[child_id];
+            child.parent = "";
+        });
+
+        // Delete the tag itself
+        const tag_modification: TagModification = {
+            type: TagModificationType.DELETE,
+            tag: tag_data,
+        };
+        dispatch(modifyTag(tag_modification));
+
+        // Update all files that contain the tag
+        const files_to_update = getFilesWithTagNaive(tag_id)(state);
+        files_to_update.forEach((file) => {
+            dispatch(removeTagFromFile({ file_id: file.gid, tag_id }));
+        });
+    },
+);
+
+export default tagsSlice.reducer;
